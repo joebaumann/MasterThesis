@@ -1,0 +1,79 @@
+{
+  "filterStep1_argument_component": {
+    "worker_IDs_who_passed": ["worker1", "worker2"],
+    "general_instructions": "<b>Pop Quiz Instructions:</b><ul style='margin-bottom: 0;'><li>For each of the following 3 questions, please select the correct answer.</li><li>After you have answered all three questions, continue by pressing the “Continue” button.</li><li>You cannot go back to the pop quiz after having pressed the “Continue” button. Therefore, do not press it before you have answered all three questions.</li></ul>",
+    "questions": {
+      "question1": {
+        "instructions": "The <mark><u>highlighted</u></mark> text is to be annotated as...</div>",
+        "text": "“ <mark><u>Other researchers have found that creating realistic 3D models is a difficult problem</u></mark> . ”",
+        "options": [
+          ["question1_option1", "...data."],
+          ["question1_option2", "...own claim."],
+          ["question1_option3", "...background claim."]
+        ],
+        "solution": "question1_option3"
+      },
+      "question2": {
+        "instructions": "The <mark><u>highlighted</u></mark> text is to be annotated as...</div>",
+        "text": "“ <mark><u>We provide detailed reasons why and how the from us identified helper functions improve the results</u></mark> . ”",
+        "options": [
+          ["question2_option1", "...data."],
+          ["question2_option2", "...own claim."],
+          ["question2_option3", "...background claim."]
+        ],
+        "solution": "question2_option2"
+      },
+      "question3": {
+        "instructions": "The <mark><u>highlighted</u></mark> text is to be annotated as...</div>",
+        "text": "“ <mark><u>The first cathode ray tube, the so-called the Braun tube, was invented in 1897</u></mark> . ”",
+        "options": [
+          ["question3_option1", "...data."],
+          ["question3_option2", "...own claim."],
+          ["question3_option3", "...background claim."]
+        ],
+        "solution": "question3_option1"
+      }
+    }
+  },
+
+  "filterStep1_argument_relation": {
+    "worker_IDs_who_passed": ["worker1", "worker2"],
+    "general_instructions": "<b>Pop Quiz Instructions:</b><ul style='margin-bottom: 0;'><li>For each of the following 3 questions, please select the correct answer.</li><li>After you have answered all three questions, continue by pressing the “Continue” button.</li><li>You cannot go back to the pop quiz after having pressed the “Continue” button. Therefore, do not press it before you have answered all three questions.</li></ul>",
+    "questions": {
+      "question1": {
+        "instructions": "Please select the answer below, which correctly defines the relation between the two argumentative components which are highlighted in the text above:",
+        "text": "“ Since <span class='data firstToken lastToken'>&nbsp;the graphics card is built into the motherboard </span><span class='annotationName annotationName-data'>&nbsp;Data</span>  , <span class='backgroundclaim firstToken lastToken'>&nbsp;ATT is popular in situations which require the animation of a number of words in real time </span><span class='annotationName annotationName-backgroundclaim'>&nbsp;Background Claim 1</span> . ”",
+        "options": [
+          ["question1_option1", "<span class='annotationName annotationName-backgroundclaim'>&nbsp;Background Claim</span> supports <span class='annotationName annotationName-data'>&nbsp;Data</span>."],
+          ["question1_option2", "<span class='annotationName annotationName-data'>&nbsp;Data</span> supports <span class='annotationName annotationName-backgroundclaim'>&nbsp;Background Claim</span>."],
+          ["question1_option3", "<span class='annotationName annotationName-data'>&nbsp;Data</span> contradicts <span class='annotationName annotationName-backgroundclaim'>&nbsp;Background Claim</span>."],
+          ["question1_option4", "<span class='annotationName annotationName-data'>&nbsp;Data</span> parts of same <span class='annotationName annotationName-backgroundclaim'>&nbsp;Background Claim</span>."]
+        ],
+        "solution": "question1_option2"
+      },
+      "question2": {
+        "instructions": "Please select the answer below, which correctly defines the relation between the two argumentative components which are highlighted in the text above:",
+        "text": "“ Given standard principles, <span class='backgroundclaim firstToken lastToken'>&nbsp;such an approach creates more accurate animations in comparison to a geometric solution </span><span class='annotationName annotationName-backgroundclaim'>&nbsp;Background Claim 1</span> . However, <span class='backgroundclaim firstToken lastToken'>&nbsp;these are actually never being applied to interactive solutions </span><span class='annotationName annotationName-backgroundclaim'>&nbsp;Background Claim 2</span> due to very high costs for implementing and also running the algorithms . ”",
+        "options": [
+          ["question2_option1", "<span class='annotationName annotationName-backgroundclaim'>&nbsp;Background Claim 1</span> supports <span class='annotationName annotationName-backgroundclaim'>&nbsp;Background Claim 2</span>."],
+          ["question2_option2", "<span class='annotationName annotationName-backgroundclaim'>&nbsp;Background Claim 2</span> supports <span class='annotationName annotationName-backgroundclaim'>&nbsp;Background Claim 1</span>."],
+          ["question2_option3", "<span class='annotationName annotationName-backgroundclaim'>&nbsp;Background Claim 1</span> contradicts <span class='annotationName annotationName-backgroundclaim'>&nbsp;Background Claim 2</span>."],
+          ["question2_option4", "<span class='annotationName annotationName-backgroundclaim'>&nbsp;Background Claim 1</span> parts of same <span class='annotationName annotationName-backgroundclaim'>&nbsp;Background Claim 2</span>."]
+        ],
+        "solution": "question2_option3"
+      },
+      "question3": {
+        "instructions": "Please select the answer below, which correctly defines the relation between the two argumentative components which are highlighted in the text above:",
+        "text": "“ <span class='backgroundclaim firstToken lastToken'>&nbsp;Spectral learning is a hot topic in computer linguistics </span><span class='annotationName annotationName-backgroundclaim'>&nbsp;Background Claim 1</span> [5], [7], [17-18], <span class='backgroundclaim firstToken lastToken'>&nbsp;and natural language processing </span><span class='annotationName annotationName-backgroundclaim'>&nbsp;Background Claim 2</span> [8], [9-11]. ”",
+        "options": [
+          ["question3_option1", "<span class='annotationName annotationName-backgroundclaim'>&nbsp;Background Claim 1</span> supports <span class='annotationName annotationName-backgroundclaim'>&nbsp;Background Claim 2</span>."],
+          ["question3_option2", "<span class='annotationName annotationName-backgroundclaim'>&nbsp;Background Claim 2</span> supports <span class='annotationName annotationName-backgroundclaim'>&nbsp;Background Claim 1</span>."],
+          ["question3_option3", "<span class='annotationName annotationName-backgroundclaim'>&nbsp;Background Claim 1</span> contradicts <span class='annotationName annotationName-backgroundclaim'>&nbsp;Background Claim 2</span>."],
+          ["question3_option4", "<span class='annotationName annotationName-backgroundclaim'>&nbsp;Background Claim 1</span> parts of same <span class='annotationName annotationName-backgroundclaim'>&nbsp;Background Claim 2</span>."]
+        ],
+        "solution": "question3_option4"
+      }
+    }
+
+  }
+}

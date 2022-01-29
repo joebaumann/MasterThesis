@@ -1,0 +1,1674 @@
+<!DOCTYPE html>
+<html style="border: 3px solid #5399b4;">
+
+<head>
+  <title>Crowd-powered argument annotation</title>
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <!-- Include bootstrap, jQuery, Popper -->
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <!-- <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script> -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js"></script>
+
+  <script src="https://kit.fontawesome.com/172b48191c.js" crossorigin="anonymous"></script>
+
+  <link rel="stylesheet" type= "text/css" href= "{{ url_for('static',filename='styles/textannotation.css') }}">
+
+  <script type="text/javascript">
+    
+    $("document").ready(function() {
+      $(document).ready(function(){
+        // enable tooltips
+        $('.tooltip-wrapper').tooltip({position: "bottom"});
+        // enable popovers
+        $('[data-toggle="popover"]').popover()
+      });
+
+      // set mturk form action so that when worker submits the hit the results data is sent to the correct mturk url
+      $("#mturk_form").attr("action", {{turkSubmitTo|tojson}});
+
+
+      loadAllLocalStorageElements();
+
+
+      logger = logger.concat(Date.now(), "/Page loaded. Preview_mode=", {{ preview_mode }}, "//");
+
+      $("#attentionTask").val(window.attentionTask);
+
+      if (window.informedConsentCheckBox == true) {
+        $('#informedConsentCheckBox').prop('checked', true);
+      }
+      else {
+        $('#informedConsentCheckBox').prop('checked', false);
+      }
+
+      window.annotation_types = {{annotation_types|tojson}};
+
+
+      // set the worker's assignment id so that mturk can process it as soon as worker submits the assignment
+      $("#assignmentId").val({{worker_assignment_data|tojson}}.assignment_id);
+
+      displayAllAnnotationTypeButtons(annotation_types);
+      window.currentSelectionToBeAnnotated = {valid: false, start_id: -1, end_id: -1};
+      window.pressedAnnotationButton = "";
+
+      // add likert scales to all questions on finish page 
+      likertScaleString_clear = `
+        <div id="surveyLikertRadioButtons">
+          <ul class='surveyLikert'>
+            <li>
+              <input type="radio" name="likert" value="very_unclear">
+              <label>Very unclear</label>
+            </li>
+            <li>
+              <input type="radio" name="likert" value="more_or_less_unclear">
+              <label>More or less clear</label>
+            </li>
+            <li>
+              <input type="radio" name="likert" value="clear">
+              <label>Clear</label>
+            </li>              
+          </ul>
+        </div>`
+      likertScaleString_easy = `
+        <div id="surveyLikertRadioButtons">
+          <ul class='surveyLikert'>
+            <li>
+              <input type="radio" name="likert" value="very_difficult">
+              <label>Very difficult</label>
+            </li>
+            <li>
+              <input type="radio" name="likert" value="more_or_less_difficult">
+              <label>More or less easy</label>
+            </li>
+            <li>
+              <input type="radio" name="likert" value="easy">
+              <label>Easy</label>
+            </li>              
+          </ul>
+        </div>`
+      likertScaleString_agree = `
+        <div id="surveyLikertRadioButtons">
+          <ul class='surveyLikert'>
+            <li>
+              <input type="radio" name="likert" value="disagree">
+              <label>Disagree</label>
+            </li>
+            <li>
+              <input type="radio" name="likert" value="undecided">
+              <label>Undecided</label>
+            </li>
+            <li>
+              <input type="radio" name="likert" value="agree">
+              <label>Agree</label>
+            </li>              
+          </ul>
+        </div>`
+      likertScaleString_more = `
+        <div id="surveyLikertRadioButtons">
+          <ul class='surveyLikert'>
+            <li>
+              <input type="radio" name="likert" value="more">
+              <label>More</label>
+            </li>
+            <li>
+              <input type="radio" name="likert" value="neither_less_nor_more">
+              <label>Neither less nor more</label>
+            </li>
+            <li>
+              <input type="radio" name="likert" value="less">
+              <label>Less</label>
+            </li>              
+          </ul>
+        </div>`
+      // add likert scale to all cells next to survey question
+      $(".surveyLikertCell-clear").append(likertScaleString_clear);
+      $(".surveyLikertCell-easy").append(likertScaleString_easy);
+      $(".surveyLikertCell-agree").append(likertScaleString_agree);
+      $(".surveyLikertCell-more").append(likertScaleString_more);
+
+      // set name of likert scale to id of parent element
+      $( ".surveyLikertCell" ).each(function( index ) {
+        let parent_id = $(this).parent().attr("id");
+        $("#" + parent_id + " input").attr("name", parent_id);
+      });
+      
+      // set name and value of li element to name/value of child radio button. This makes it possible to check radio button if worker clicks on description
+      $( ".surveyLikertCell input" ).each(function( index ) {
+        let radio_name = $(this).attr("name");
+        let radio_value = $(this).attr("value");
+        $(this).parent().attr("name", radio_name);
+        $(this).parent().attr("value", radio_value);
+      });
+      
+      // set name and value of li element to name/value of child radio button. This makes it possible to check radio button if worker clicks on description
+      $( "#certaintyRadioButtons input" ).each(function( index ) {
+        let radio_value = $(this).attr("value");
+        $(this).parent().attr("value", radio_value);
+      });
+
+
+      // load already checked answers as sent by server
+      loadSurveyAnswers();
+      loadFeedback();
+
+      jumpToPage(window.paragraphNumber);
+
+      $('#mturk_form').submit(function(event) {
+        event.preventDefault(); // this prevents the default submit
+        logger = logger.concat(Date.now(), "/Submit", "//");
+        updateMTurkForm();
+
+        // print data on heroku for safety reasons
+        printDataOnServer("SUBMIT COMPONENT");
+        
+
+        // clear all worker data in local storage when worker submits HIT
+        window.localStorage.clear();
+        $(this).unbind('submit').submit(); // continue with the submit
+      })
+
+    });
+
+    function printDataOnServer(message) {
+      // get timestamp
+      var currentTimeInMs = Date.now();
+
+      var submit_DATA = {'message': message, 'timestamp': currentTimeInMs, 'annotations': JSON.stringify(window.annotations), 'worker_assignment_data': JSON.stringify({{worker_assignment_data|tojson}}), 'attention_task': $("#attentionTask").val(), 'surveyAnswers': JSON.stringify(window.surveyAnswers), 'feedback': $("textarea[name='feedback']").val(), 'logger': window.logger};
+
+      $.getJSON('{{url_for('textannotation_bp.submit_data')}}', submit_DATA, function(data) {
+        console.log("data was successfully sent to the server");
+        console.log(data);
+      })
+    }
+
+    function displayTextToAnnotate(paragraph, annotations) {
+      var textToAnnotateDIV = $('#textToAnnotate');
+      textToAnnotateDIV.empty();
+
+      let text_to_annotate = ({{text_to_annotate|tojson}})[paragraph];
+      
+      $.each(text_to_annotate, function(id, token_dict) {
+        textToAnnotateDIV.append($('<span id=' + id + '>' + token_dict.token + ' </span>'));
+      });
+
+      annotateTextAll(annotations, paragraph);
+
+    };
+      
+    function getForbiddenTokens() {
+      var forbiddenTokens = {{forbidden_tokens|tojson}};
+      return forbiddenTokens
+    };
+
+    function isForbiddenToken(tokenToBeChecked) {
+      // check if a token is in the array of the forbidden tokens which was passed by the flask app
+      var forbiddenTokens = getForbiddenTokens();
+      var tokenToBeChecked_trimmed = tokenToBeChecked.replace(/ +/g, "");
+      for (var i = 0; i < forbiddenTokens.length; i++) {
+        if ((tokenToBeChecked == forbiddenTokens[i]) || (tokenToBeChecked_trimmed == forbiddenTokens[i])) {
+          //return true if token is forbidden
+          return true;
+        }
+      }
+      return false;
+    };
+
+    function annotateTextAll(annotations, paragraph) {
+      if ((paragraph in annotations) && (annotations[paragraph] != null)) {
+        
+        for (var i = 0; i < annotations[paragraph].length; i++) {
+
+          let start = annotations[paragraph][i][0];
+          let end = annotations[paragraph][i][1];
+          var annotation = annotations[paragraph][i][2];
+          for (var j = parseFloat(start); j <= parseFloat(end); j++){
+            if (j == parseFloat(start)) {
+              addTokenAnnotation(j, annotation, "firstToken")
+            }
+            if (j == parseFloat(end)) {
+              addTokenAnnotation(j, annotation, "lastToken")
+            }
+            if ((j > parseFloat(start)) | (j < parseFloat(end))) {
+              addTokenAnnotation(j, annotation, false);
+            }
+          }
+          addAnnotationName(end, annotation);
+        }
+      }
+    };
+
+    function displayAllAnnotationTypeButtons(annotation_types) {
+      var numberOfAnnotationTypes = annotation_types.length;
+      for (var i = 0; i < numberOfAnnotationTypes; i++) {
+        // create css classes and html element on the fly for each button
+        
+        let className = annotation_types[i][0];
+        let displayName = annotation_types[i][1];
+        let color = annotation_types[i][2];
+        
+        
+        $("<style type='text/css'> ." + className + " {\
+          background-color: " + color + " !important;\
+          color: white;\
+          }</style>").appendTo("head");
+
+        if (i == 0) {
+          var marginLeft = "0px";
+        }
+        else {
+          var marginLeft = "15px";
+        }
+
+        $("<style type='text/css'> #annotationButtons #" + className + " {\
+          border: 3px solid " + color + ";\
+          color: white;\
+          padding: 2px;\
+          margin-left: " + marginLeft + ";\
+          background-color: " + color + ";\
+          border-top-right-radius: 0px;\
+          border-bottom-right-radius: 0px;\
+          }</style>").appendTo("head");
+
+        $("<style type='text/css'> #annotationButtons #" + className + ":hover:enabled {\
+          border: 3px solid white;\
+          }</style>").appendTo("head");
+
+        $("<style type='text/css'> .annotationName-" + className + " {\
+          font-style: italic;\
+          font-size: small;\
+          border-bottom: 3px solid " + color + ";\
+          margin-right: 2px;\
+          } </style>").appendTo("head");
+
+        $('#annotationButtons').append($('\
+          <button class="btn btn-basic ' + className + '" id="' + className + '" disabled>'+ displayName + '</button>\
+          '));
+      }
+    };
+
+    function addTokenAnnotation(tokenId, annotation, styleClass) {
+      $("#"+tokenId).addClass(annotation);
+      if (!(styleClass === false)) {
+        $("#"+tokenId).addClass(styleClass);
+      }
+    };
+
+    function addAnnotationName(tokenId_before, annotation) {
+      
+      let displayName = (window.annotation_types.find(type => type[0] == annotation)[1]);
+
+      $('<span class="annotationName annotationName-' + annotation + '" id=' + (tokenId_before+0.5) + '> ' + displayName + ' <button type="button" class="close editAnnotation" aria-label="Close"><span id=' + (tokenId_before+0.5) + ' class="editAnnotationIcon" aria-hidden="true"><i class="fas fa-ellipsis-h editAnnotationIcon"></i></span></button> </span>').insertAfter("#" + tokenId_before);
+    };
+
+    function removeTokenAnnotation(tokenId) {
+      $("#"+tokenId).removeClass();
+
+    };
+
+    function removeAnnotationNameSpan(tokenId) {
+      $("#" + tokenId).remove();
+    };
+
+
+    function loadSurveyAnswers() {
+      // loop through all survey answers which are saved in local storage
+      for (var i = 0; i < window.surveyAnswers.length; i++) {
+        let question = window.surveyAnswers[i]['question'];
+        let answer = window.surveyAnswers[i]['answer'];
+        // check radiobuttons according to local storage data
+        $("input[name='" + question + "'][value='" + answer + "']").prop("checked", true);
+      }
+    }
+
+    function loadFeedback() {
+      // set the value of the feedback input box based on local storage data
+      $("textarea[name='feedback']").val(window.feedback);
+    }
+
+
+    function errorFn(xhr, status, strErr) {
+      alert(strErr);
+    };
+  </script>
+
+  <script>
+    $(document).ready(function () {
+
+      // make sure that focus is on text field as soon as certainty modal is opened
+      $('#certaintyModal').on('shown.bs.modal', function () {
+        $('#certaintyModalInput').trigger('focus')
+      });
+
+
+      $('#annotationButtons > button').not('button.annotationInfoButton').on('click',(function () {
+        window.modalMode = 'NewAnnotation';
+
+        // clear certainty modal radio button and input text
+        $("#certaintyRadioButtons input:radio:checked").prop("checked", false);
+        $('#certaintyModalInput').val("");
+        // remove all red borders
+        $("#certaintyRadioButtons").css("border", "");
+        $("#keywordSelection").css("border", "");
+        $("#certaintyModalInput").css("border", "");
+        // hide delete button
+        $("#deleteAnnotation-wrapper").addClass("hidden");
+        // hide changeAnnotationType buttons
+        $("#changeAnnotationType").addClass("hidden");
+        // set text of save annotation button
+        $("#saveAnnotation").text("Save Annotation");
+        // disable the save annotation button
+        $('#saveAnnotation').prop("disabled", true);
+
+        
+        var keywordSelectionDIV = $('#keywordSelection');
+        keywordSelectionDIV.empty();
+
+        if (currentSelectionToBeAnnotated.start_id == currentSelectionToBeAnnotated.end_id) {
+          //hide keywords section since there the annotation only contains one token
+          $("#keywordSelection-wrapper").addClass("hidden");
+        }
+        else {
+          //hide keywords section since there the annotation only contains one token
+          $("#keywordSelection-wrapper").removeClass("hidden");
+          
+          let annotated_tokens = $("#textToAnnotate .selectedTokensToBeAnnotated").clone();
+
+          $.each(annotated_tokens, function(nr, annotatedTokenSpan) {
+            keywordSelectionDIV.append($(annotatedTokenSpan));
+          });
+
+          //remove selectedTokensToBeAnnotated class in keywordSelection div
+          keywordSelectionDIV.children().removeClass("selectedTokensToBeAnnotated");
+
+          //keywordSelectionDIV.append($("<a class='keywordSelectionButton' id='" + annotatedTokenSpan.id + "'>" + annotatedTokenSpan + "</a>"));
+          keywordSelectionDIV.children().wrap( "<a class='keywordSelectionButton'></a>" );
+        }
+
+        window.pressedAnnotationButton = this.id;
+        let annotationType_displayName = $(this).html();
+
+        // first remove all classes and then add class to modalheader for css styling reasons
+        $(".modal-header").removeClass().addClass("modal-header").addClass(window.pressedAnnotationButton);
+        // then extend the modal header text
+        let headerText = "New annotation" + ": <u><b>" + annotationType_displayName + "</b></u>";
+        $("#exampleModalLongTitle").html(headerText);
+
+        // open the modal
+        $('#certaintyModal').modal({
+          keyboard: false
+        });
+        
+        logger = logger.concat(Date.now(), "/New annotation. type=", pressedAnnotationButton, "//");
+
+      })
+      );
+
+
+      $(document).on("click", "#changeAnnotationType-buttons > button", function(){
+        // click event of changeAnnotationType-buttons is nested in a document click event listener since these buttons are created dynamically when an annotation is being edited
+        
+        // change the annotation_type of the annotation based on the id of the pressed button
+        window.pressedAnnotationButton = this.id;
+
+        // remove the orange border from all buttons
+        $("#changeAnnotationType-buttons > button").css("border", "4px solid white");
+        // then add orange button to selected new annotation_type
+        $("#changeAnnotationType-buttons #" + this.id).css("border", "4px solid orange");
+
+        return false;
+      });
+
+
+      $('button#saveAnnotation').on('click',(function () {
+        if (modalMode == 'EditAnnotation') {
+          // get id of deleteButton
+          let idToDelete = $(".deleteAnnotation").attr('id');
+
+          // delete annotation according to clicked delete button id
+          deleteAnnotation(idToDelete);
+          // after annotation is deleted create annotation newly including the changes
+
+        }
+
+        let selection_validity = window.currentSelectionToBeAnnotated.valid;
+        let selection_start_id = window.currentSelectionToBeAnnotated.start_id;
+        let selection_end_id = window.currentSelectionToBeAnnotated.end_id;
+        let selectedKeywords = $(".keywordSelectionButton.keywordSelectionButton-selected");
+        let selectedKeywordIDs = [];
+
+        selectedKeywords.each(function( index ) {
+          // loop through all selected keywords and add them to the array so that it can be saved within the new annotation
+          let token_id = $(this).children("span").first().attr("id");
+          selectedKeywordIDs.push(token_id);
+        });
+        
+        let certaintyModalInput = $('#certaintyModalInput').val();
+        var certaintyButton = $('#certaintyRadioButtons input:radio:checked').val();
+
+        if (certaintyButton == null) {
+          var certaintyButton = -1;
+        }
+
+
+        if (selection_validity==true) {
+          updateAnnotatedText(parseInt(selection_start_id), parseInt(selection_end_id), window.pressedAnnotationButton, window.paragraphNumber, certaintyButton, certaintyModalInput, selectedKeywordIDs);
+          disableAnnotationButtons();
+        }
+
+        // unselect all tokens
+        unselectAllTokens();
+        // and disable the annotation buttons
+        disableAnnotationButtons();
+        // hide modal
+        $('#certaintyModal').modal('toggle');
+        
+        updateWorkerData();
+
+        logger = logger.concat(Date.now(), "/Save annotation. type=", pressedAnnotationButton, "start=", selection_start_id, "end=", selection_end_id, "//");
+
+      }));
+
+      $('button.deleteAnnotation').on('click',(function () {
+        // get id of deleteButton
+        let idToDelete = $(".deleteAnnotation").attr('id');
+
+        // delete annotation according to clicked delete button id
+        deleteAnnotation(idToDelete);
+
+        // unselect all tokens
+        unselectAllTokens();
+        // and disable the annotation buttons
+        disableAnnotationButtons();
+        // hide modal
+        $('#certaintyModal').modal('toggle');
+        
+        updateWorkerData();
+
+        logger = logger.concat(Date.now(), "/Delete annotation. id=", idToDelete, "//");
+
+      }));
+
+
+      /* click handlers so that every time a worker enters something in the modal, the save annotation button is enabled in case no input is missing anymore. This makes sure that a worker always has to fill out everything */
+
+      $(document).on("click", ".keywordSelectionButton", function(){
+        // click event of keyword buttons is nested in a document click event listener since keyword buttons are created dynamically
+        $(this).toggleClass("keywordSelectionButton-selected");
+        updateSaveAnnotationButton();
+
+        return false;
+      });
+
+      $(function(){
+        // whenever a radiobutton is clicked, check if save annotation button can be enabled
+        $('input[type="radio"]').click(function(){
+          updateSaveAnnotationButton();
+        });
+
+        // whenever textfield changes, check if save annotation button can be enabled
+        $("#certaintyModalInput").on('change keydown paste input', function(){
+          updateSaveAnnotationButton();
+        });
+
+        // whenever feedback-textfield changes, update worker data on server
+        $("textarea[name='feedback']").on('change keydown paste input', function(){
+          updateWorkerData();
+        });
+        
+        // whenever attentionTask-input text changes, update worker data on server
+        $("#attentionTask").on('change keydown paste input', function(){
+          updateWorkerData();
+        });
+
+      });
+
+      $("#saveAnnotationWrapper").hover(function(){
+        // when worker hovers over disabled saveAnnotation-button, indicate all empty inputs with a red border
+        updateSaveAnnotationButton(true);
+      });
+
+      $(".surveyLikert input").change(function(){
+        updateSurveyAnswerObject();
+      });
+
+      $(".surveyLikert li").click(function(){
+        // worker clicks on label or next to label, then automatically check the nearby radio button on survey page
+        let li_name = $(this).attr("name");
+        let li_value = $(this).attr("value");
+        $("input[name='" + li_name + "'][value='" + li_value + "']").prop("checked", true);
+        updateSurveyAnswerObject();
+      });
+
+      $("#certaintyRadioButtons li").click(function(){
+        // worker clicks on label or next to label, then automatically check the nearby radio button in annotation modal
+        let li_value = $(this).attr("value");
+        $("input[name='likert'][value='" + li_value + "']").prop("checked", true);
+      });
+
+    });
+
+    function updateSurveyAnswerObject() {
+
+      let checkedSurveyRadioButtons = $(".surveyLikert input:radio:checked");
+      // loop through all survey questions and push the checked ones to the array
+      $.each(checkedSurveyRadioButtons, function(id, token) {
+        let question = $(token).attr("name");
+        let answer = $(token).attr("value");
+        // if question is already in array remove it
+        surveyAnswers = surveyAnswers.filter(function(e) { return e.question != question; });
+        // add new or updated answer to array
+        surveyAnswers.push({"question": question, "answer": answer});
+      });
+
+      updateWorkerData();
+    }
+
+    function unselectAllTokens(){
+      // unselect all currently selected tokens
+      $('#textToAnnotate .selectedTokensToBeAnnotated').removeClass('selectedTokensToBeAnnotated');
+    };
+
+
+    function getSelectedTextByUser() {
+      // Function to get the Selected Text 
+      let selectedText = ''; 
+
+      // window.getSelection 
+      if (window.getSelection) {
+        selectedText = window.getSelection(); 
+      }
+      // document.getSelection 
+      else if (document.getSelection) { 
+        selectedText = document.getSelection(); 
+      }
+      // document.selection 
+      else if (document.selection) { 
+        selectedText = document.selection.createRange().text; 
+      }
+      // get id of the first selected token
+      let selection_start_id = selectedText.anchorNode.parentElement.id;
+      // get id of the second selected token
+      let selection_end_id = selectedText.focusNode.parentElement.id;
+      return {
+        selectedText: selectedText,
+        selection_start_id: selection_start_id,
+        selection_end_id: selection_end_id
+        }
+    };
+
+    function clearSelection() {
+      // clear the selected text visually
+      if (window.getSelection) {
+        if (window.getSelection().empty) {  // Chrome
+          window.getSelection().empty();
+        }
+        else if (window.getSelection().removeAllRanges) {  // Firefox
+          window.getSelection().removeAllRanges();
+        }
+      }
+      else if (document.selection) {  // IE?
+        document.selection.empty();
+      }
+    };
+
+    function updateAnnotatedText(start_id, end_id, annotation_new, paragraph, certaintyButton, certaintyModalInput, selectedKeywordIDs) {
+
+      if (start_id > end_id){
+        // change start and end if end_id is actually smaller than start_id
+        var start_id_new = end_id;
+        var end_id_new = start_id;
+      }
+      else {
+        var start_id_new = start_id;
+        var end_id_new = end_id;
+      }
+
+      let annotations_after = [];
+
+      // check if annotations already exist for this paragraph
+      if (paragraph in window.annotations) {
+
+        let annotation_before = annotations[paragraph];
+
+
+
+        // loop through all already existing annotations
+        for (var i = 0; i < annotation_before.length; i++) {
+
+          var start = annotation_before[i][0];
+          var end = annotation_before[i][1];
+
+          var oldAnnotationLength = Math.abs(end - start) + 1;
+          var annotation = annotation_before[i][2];
+          annotationsAreOverlapping = is_overlapping(start, end, start_id_new, end_id_new);
+
+          if (annotationsAreOverlapping[0]){
+            // new annotation overlaps with already existing annotation
+
+            if (annotationsAreOverlapping[1] == oldAnnotationLength) {
+              // the new annotation overlaps the entire old annotation
+              // remove the old annotationName Span
+              removeAnnotationNameSpan(end + "\\.5");
+              //$("#" + end + "\\.5").remove();
+            }
+
+            else {
+              // the new annotation overlaps only a part of the old annotation 
+
+              if (start_id_new > start) {
+                // there is a remaining part on the left side
+
+                let valueOfLastToken = $('#' + (start_id_new - 1)).text();
+                if (isForbiddenToken(valueOfLastToken)) {
+                  // cut last token since it is forbidden token
+                  var end_of_remaining_left_part = (start_id_new - 2);
+                }
+                else {
+                  var end_of_remaining_left_part = (start_id_new - 1);
+                }
+
+                // add annotationName span for left remaining part of old annotation
+                addAnnotationName(end_of_remaining_left_part, annotation);
+                // make sure that last token has css border-radius again
+                addTokenAnnotation(end_of_remaining_left_part, annotation, "lastToken")
+
+                // push the left remaining part of old annotation to the annotations-array
+                annotations_after.push([start, end_of_remaining_left_part, annotation, certaintyButton, certaintyModalInput, selectedKeywordIDs, ({{text_to_annotate|tojson}})[paragraph][start]["start"], ({{text_to_annotate|tojson}})[paragraph][end_of_remaining_left_part]["end"]]);
+              }
+
+              if (end_id_new >= end) {
+                // the new annotation overlaps only a part of the old annotation and there is NO remaining part on the right side
+                // remove the old annotationName Span
+                removeAnnotationNameSpan(end + "\\.5");
+              }
+              else {
+                // the new annotation overlaps only a part of the old annotation and there IS A remaining part on the right side
+                // push the right remaining part of old annotation to the annotations-array
+                
+                let valueOfFirstToken = $('#' + (end_id_new + 1)).text();
+                if (isForbiddenToken(valueOfFirstToken)) {
+                  // cut first token since it is forbidden token
+                  var start_of_remaining_right_part = (end_id_new + 2);
+                  removeTokenAnnotation(end_id_new + 1);
+                  removeAnnotationNameSpan((end_id_new + 1) + "\\.5");
+
+                }
+                else {
+                  var start_of_remaining_right_part = (end_id_new + 1);
+                }
+
+                if (!(start_of_remaining_right_part > end)) {
+                  // add remaining right part to annotations array in case it is not just a forbidden token
+                  annotations_after.push([start_of_remaining_right_part, end, annotation, certaintyButton, certaintyModalInput, selectedKeywordIDs, ({{text_to_annotate|tojson}})[paragraph][start_of_remaining_right_part]["start"], ({{text_to_annotate|tojson}})[paragraph][end]["end"]]);
+                  // make sure that first token has css border-radius again
+                  addTokenAnnotation(start_of_remaining_right_part, annotation, "firstToken")
+                }
+              }
+            }
+
+          }
+
+          else {
+            // new annotation DOESN'T overlap with this already existing annotation
+            annotations_after.push(annotation_before[i]);
+          }
+        }
+      }
+      
+      // push the new annotation to the annotations-array
+      annotations_after.push([start_id_new, end_id_new, annotation_new, certaintyButton, certaintyModalInput, selectedKeywordIDs, ({{text_to_annotate|tojson}})[paragraph][start_id_new]["start"], ({{text_to_annotate|tojson}})[paragraph][end_id_new]["end"]]);
+
+      // remove annotation and annotate newly for newly annotated tokens
+      for (var i = parseFloat(start_id_new); i <= parseFloat(end_id_new); i++) {
+        removeTokenAnnotation(i);
+        if (i == parseFloat(start_id_new)) {
+          addTokenAnnotation(i, annotation_new, "firstToken")
+        }
+        if (i == parseFloat(end_id_new)) {
+          addTokenAnnotation(i, annotation_new, "lastToken")
+        }
+        if ((i > parseFloat(start_id_new)) | (i < parseFloat(end_id_new))) {
+          addTokenAnnotation(i, annotation_new, false);
+        }          
+      }
+      
+      // annotate the new annotationName Span
+      addAnnotationName(end_id_new, annotation_new);
+
+      // update the size of the annotationName and the edit icon. This is necessary if the size has been changed by the worker.
+      updateTextSize();
+
+      // update the global annotations array
+      window.annotations[paragraph] = annotations_after;
+
+    }
+
+    function is_overlapping(x1,x2,y1,y2) {
+      //check if two annotations are overlapping
+      let isOverlapping = Math.max(x1,y1) <= Math.min(x2,y2);
+      if (isOverlapping) {
+        var overlappingAmount = Math.min(x2,y2) - Math.max(x1,y1) + 1;
+      }
+      else {
+        var overlappingAmount = 0;
+      }
+      return [isOverlapping, overlappingAmount];
+    }
+
+    function updateSaveAnnotationButton(onHover=false) {
+
+      let certaintyRadioButton = $('#certaintyRadioButtons input:radio:checked').val();
+      let keywordSelection = $(".keywordSelectionButton.keywordSelectionButton-selected");
+      let decisionSpecificationInput = $('#certaintyModalInput').val();
+
+      let certaintyRadioButton_isFilled = typeof certaintyRadioButton != 'undefined';
+      if (currentSelectionToBeAnnotated.start_id == currentSelectionToBeAnnotated.end_id) {
+        // set keywordSelection_isFilled=true since annotation consists of only one token
+        var keywordSelection_isFilled = true;
+      }
+      else {
+        var keywordSelection_isFilled = keywordSelection.length != 0;
+      }
+      let decisionSpecificationInput_isFilled = decisionSpecificationInput != "";
+
+      //remove red border if now worker filled it out
+      if (certaintyRadioButton_isFilled) {
+        $("#certaintyRadioButtons").css("border", "");
+      }
+      if (keywordSelection_isFilled) {
+        $("#keywordSelection").css("border", "");
+      }
+      if (decisionSpecificationInput_isFilled) {
+        $("#certaintyModalInput").css("border", "");
+      }
+
+      if (certaintyRadioButton_isFilled && keywordSelection_isFilled && decisionSpecificationInput_isFilled) {
+        // enable save button
+        $('#saveAnnotation').prop("disabled", false);
+        // deactivate popover
+        $('#saveAnnotationWrapper').removeAttr( "data-original-title" );
+        
+      }
+      else {
+        // disable save button
+        $('#saveAnnotation').prop("disabled", true);
+        // activate popover
+        $('#saveAnnotationWrapper').attr("data-original-title", "All inputs are required to save the annotation.");
+
+        if (onHover) {
+          // if function was called because worker hovered over disabled saveAnnotation-button, visually show which input is missing
+          //remove red border if now worker filled it out
+          if (typeof certaintyRadioButton == 'undefined') {
+            $("#certaintyRadioButtons").css("border", "2px solid red");
+          }
+          if (keywordSelection.length == 0) {
+            $("#keywordSelection").css("border", "2px solid red");
+          }
+          if (decisionSpecificationInput == "") {
+            $("#certaintyModalInput").css("border", "2px solid red");
+          }
+        }
+      }
+
+    };
+
+  </script>
+
+
+</head>
+
+<body>
+
+
+  <div class="container-fluid justify-content-center">
+    <div class="hidden row" id="instructions">
+      <div id="general-instructions">{% block instructions %}{% endblock %}</div>
+      <div id="startAnnotationButton" class="tooltip-wrapper disabled">
+        <button id="startAnnotation" class="btn btn-success btn-lg btn-block">Start!</button>
+      </div>
+    </div>
+    <div class="sticky-top" style="background-color: white;">
+      <div style="background-color: white; height: 4px"></div>
+      <div class="row progress hidden" id="progress">
+          <div class="progress-bar bg-success" role="progressbar" aria-valuenow="70"
+          aria-valuemin="0" aria-valuemax="100">
+            <span class="sr-only"></span>
+          </div>
+      </div>
+      
+      <div class="row justify-content-left hidden" id="userControls">
+        <button id="smallerTextButton" class="btn btn-outline-primary"><i class="fa fa-font"></i></button>
+        <button id="biggerTextButton" class="btn btn-outline-primary"><i class="fa fa-font"></i></button>
+      </div>
+      <div class="row justify-content-center hidden" id="annotationButtons"></div>
+    </div>
+    <div class="row hidden" id="textToAnnotate-wrapper">
+      <div id="textToAnnotate"></div>
+    </div>
+    <div class="row hidden" id="navigationButtons">
+      <div class="col-sm" id="previousPage">
+        <button id="previousPageButton" class="btn btn-basic previous">&laquo; Previous</button>
+      </div>
+      <div class="col-sm" id="nextPage">
+        <button id="nextPageButton" class="btn btn-basic next">Next &raquo;</button>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="hidden container-fluid" id="feedback">
+    <!-- HTML to handle creating the HIT form -->
+    <form id="mturk_form" method="post" name="mturk_form">
+      <input type='hidden' value='' name='assignmentId' id='assignmentId'/>
+      <input type='hidden' value='' name='submit_annotations' id='submit_annotations'/>
+      <input type='hidden' value='' name='submit_attention_task' id='submit_attention_task'/>
+      <input type='hidden' value='' name='submit_worker_assignment_data' id='submit_worker_assignment_data'/>
+      <input type='hidden' value='' name='submit_surveyAnswers' id='submit_surveyAnswers'/>
+      <input type='hidden' value='' name='submit_feedback' id='submit_feedback'/>
+      <input type='hidden' value='' name='submit_logger' id='submit_logger'/>
+
+      <div class="row justify-content-center">
+        <strong>You're almost there!</strong>
+      </div>
+      <div class="row justify-content-center">
+        <strong>Please answer all of the following questions and then submit the HIT.</strong>
+      </div>
+      <div class="row justify-content-center" id="survey-question">
+
+        <table class="table table-hover" id="finishTable">
+          
+          <tbody>
+            <tr id="feedbackSurvey_question1">
+              <td class="surveyQuestion">How clear was it what the task was about?</td>
+              <td class="surveyLikertCell surveyLikertCell-clear"></td>
+            </tr>
+            <tr id="feedbackSurvey_question2">
+              <td class="surveyQuestion">In general, how difficult/easy was the task?</td>
+              <td class="surveyLikertCell surveyLikertCell-easy">
+              </td>
+            </tr>
+            <tr id="feedbackSurvey_question3">
+              <td class="surveyQuestion">How difficult/easy was it to understand the difference between own claims, background claims and data?</td>
+              <td class="surveyLikertCell surveyLikertCell-easy"></td>
+            </tr>
+            <tr id="feedbackSurvey_question4">
+              <td class="surveyQuestion">How difficult/easy was it to distinguish own claims from background claims?</td>
+              <td class="surveyLikertCell surveyLikertCell-easy"></td>
+            </tr>
+            <tr id="feedbackSurvey_question5">
+              <td class="surveyQuestion">How difficult/easy was it to distinguish own claims from data?</td>
+              <td class="surveyLikertCell surveyLikertCell-easy"></td>
+            </tr>
+            <tr id="feedbackSurvey_question6">
+              <td class="surveyQuestion">How difficult/easy was it to distinguish background claims from data?</td>
+              <td class="surveyLikertCell surveyLikertCell-easy"></td>
+            </tr>
+            <tr id="feedbackSurvey_question7">
+              <td class="surveyQuestion">How difficult/easy was it to understand the content of the texts?</td>
+              <td class="surveyLikertCell surveyLikertCell-easy"></td>
+            </tr>
+            <tr id="feedbackSurvey_question8">
+              <td class="surveyQuestion">Seeing more context would have been helpful to accurately annotate the given paragraphs.</td>
+              <td class="surveyLikertCell surveyLikertCell-agree"></td>
+            </tr>
+            <tr id="feedbackSurvey_question9">
+              <td class="surveyQuestion">More background knowledge about computer graphics is required to be able to annotate accurately.</td>
+              <td class="surveyLikertCell surveyLikertCell-agree"></td>
+            </tr>
+            <tr id="feedbackSurvey_question10">
+              <td class="surveyQuestion">The payment I received was appropriate for the work I did.</td>
+              <td class="surveyLikertCell surveyLikertCell-agree"></td>
+            </tr>
+            <tr id="feedbackSurvey_question11">
+              <td class="surveyQuestion">It took me less/more time than indicated to properly annotate all paragraphs.</td>
+              <td class="surveyLikertCell surveyLikertCell-more"></td>
+            </tr>
+          </tbody>
+        </table>
+
+      </div>
+
+      <div class="row justify-content-center" id="feedback-textbox">
+        <textarea name="feedback" rows=3 cols=70 placeholder="Please enter any additional feedback you might have about the task here..."></textarea>
+      </div>
+      
+      <div class="row justify-content-center">
+        <!-- HTML to handle submitting the HIT -->
+        <button id="submitButton" class="btn btn-warning btn-lg btn-block" type="submit" value="Submit">Finish and Submit HIT</button>
+      </div>
+    </form>
+
+    <div class="row justify-content-center">
+      <button id="previousPageButton-feedback" class="btn btn-basic">&laquo; Previous</button>
+    </div>
+
+  </div>
+
+
+  <!-- Certainty Modal -->
+  <div class="modal fade" id="certaintyModal" tabindex="-1" role="dialog" aria-labelledby="certaintyModal" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+      <div class="modal-content">
+        <div id="modal-header" class="modal-header">
+          <h3 class="modal-title" id="exampleModalLongTitle">New annotation</h3>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div id="changeAnnotationType">
+            <p class="font-weight-bold">Change annotation type:</p>
+            <div id="changeAnnotationType-buttons"></div>
+          </div>
+
+          <p class="font-weight-bold" style="margin-top: 6px;">Please indicate how certain you are that this annotation is correct:</p>
+
+          <div id="certaintyRadioButtons">
+            <ul class='likert'>
+              <li>
+                <input type="radio" name="likert" value="not_certain">
+                <label>Not certain at all</label>
+              </li>
+              <li>
+                <input type="radio" name="likert" value="more_or_less_certain">
+                <label>More or less certain</label>
+              </li>
+              <li>
+                <input type="radio" name="likert" value="very_certain">
+                <label>Very Certain</label>
+              </li>              
+            </ul>
+          </div>
+
+          <div id="keywordSelection-wrapper">
+            <p class="font-weight-bold">Please select those words which made you decide to do this annotation:
+              <div id="keywordSelection"></div>
+            </p>
+          </div>
+          
+
+          <p class="font-weight-bold" style="margin-top: 6px;">Please specify what lead you to the decision to annotate these words / this sentence:
+            <input id="certaintyModalInput" class="form-control" type="text" placeholder="Please specify in your own words...">
+          </p>
+
+
+        </div>
+        <div class="modal-footer">
+          <div id="deleteAnnotation-wrapper" class="mr-auto">
+            <button type="button" class="btn btn-danger mr-auto deleteAnnotation" >Delete this Annotation</button>
+          </div>
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+          <div id="saveAnnotationWrapper" class="tooltip-wrapper disabled" title="All inputs are required to save the annotation.">
+            <button id="saveAnnotation" type="button" class="btn btn-primary" disabled>Save Annotation</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+
+
+</body>
+
+<script>
+
+  //$('#textToAnnotate').on('mousedown', '*', function() {
+  $(document).on('mousedown', '*', function(evnt) {
+    //$('.example').popover('hide');
+    let target = evnt.target;
+    let targetTagName = evnt.target.tagName;
+    let targetParentNode = evnt.target.parentNode.id;
+    if ((targetTagName == "BUTTON") && (targetParentNode == "annotationButtons")) {
+      // return function to not do anything when one of the annotation buttons was clicked
+      return;
+    }
+    else {
+
+      //unselectAllTokens();
+      // and disable the annotation buttons
+      //disableAnnotationButtons();
+    }
+
+    
+  });
+
+
+  // this var is used to enable text selection as soon as the user pressed on some token
+  var isDown = false;
+
+  // the mousedown has to be done on a specific token
+  $("#textToAnnotate").mousedown(function(){
+    // only continue with annotation if mousedown was not done on edit button
+    if (!($(event.target).hasClass('editAnnotationIcon'))) {
+      //console.log("is down");
+      isDown = true;
+      // unselect all tokens
+      unselectAllTokens();
+      // and disable the annotation buttons
+      disableAnnotationButtons();
+    }
+  });
+  
+  $("div#textToAnnotate").on("click", function() {
+    // only continue with edit if click was done on edit button
+    if ($(event.target).hasClass('editAnnotationIcon')) {
+      let idToEdit = event.target.parentElement.id - 0.5;
+      editAnnotation(idToEdit);
+      logger = logger.concat(Date.now(), "/Edit annotation. id=", idToEdit, "//");
+    }
+  });
+  
+  $("button#smallerTextButton").on("click", function() {
+    let oldSize = parseInt($("#textToAnnotate").css('font-size').replace('px', ''));
+    let newSize = (oldSize-2) + "px";
+    let newSizeAnnotationNameSpan = (oldSize-5) + "px";
+    let newSizeEditAnnotationIcon = (oldSize+6) + "px";
+    $("#textToAnnotate").css("fontSize", newSize);
+    $(".annotationName").css("fontSize", newSizeAnnotationNameSpan);
+    $(".editAnnotationIcon").css("fontSize", newSizeEditAnnotationIcon);
+    //disable button if min font-size is set
+    if (oldSize < 8) {
+      $('button#smallerTextButton').prop("disabled", true);
+    }
+    //enable button for bigger text
+    $('button#biggerTextButton').prop("disabled", false);
+  });
+  
+  $("button#biggerTextButton").on("click", function() {
+    let oldSize = parseInt($("#textToAnnotate").css('font-size').replace('px', ''));
+    let newSize = (oldSize+2) + "px";
+    let newSizeAnnotationNameSpan = (oldSize-1) + "px";
+    let newSizeEditAnnotationIcon = (oldSize+10) + "px";
+    $("#textToAnnotate").css("fontSize", newSize);
+    $(".annotationName").css("fontSize", newSizeAnnotationNameSpan);
+    $(".editAnnotationIcon").css("fontSize", newSizeEditAnnotationIcon);
+    //disable button if max font-size is set
+    if (oldSize > 50) {
+      $('button#biggerTextButton').prop("disabled", true);
+    }
+    //enable button for smaller text
+    $('button#smallerTextButton').prop("disabled", false);
+  });
+
+  function editAnnotation(idToEdit) {
+    window.modalMode = 'EditAnnotation';
+
+    // clear certainty modal radio button and input text
+    $("#certaintyRadioButtons input:radio:checked").prop("checked", false);
+    $('#certaintyModalInput').val("");
+    // remove all red borders
+    $("#certaintyRadioButtons").css("border", "");
+    $("#keywordSelection").css("border", "");
+    $("#certaintyModalInput").css("border", "");
+    // unhide delete button
+    $("#deleteAnnotation-wrapper").removeClass("hidden");
+    // unhide changeAnnotationType buttons
+    $("#changeAnnotationType").removeClass("hidden");
+    // add buttons to give worker the chance to change the annotation_type
+    $("#changeAnnotationType-buttons").empty();
+    
+
+
+
+    // set text of save annotation button
+    $("#saveAnnotation").text("Save Changes");
+
+    // set id of delete button
+    $("#deleteAnnotation-wrapper button").attr("id", idToEdit);
+
+
+
+    // loop through all already existing annotations to load content of annotation to edit
+    for (var i = annotations[paragraphNumber].length -1; i >= 0; i--) {
+      var annotation_end = annotations[paragraphNumber][i][1];
+      let found = (idToEdit == annotation_end);
+      if (found) {
+        var annotation_start = annotations[paragraphNumber][i][0];
+        var annotation_type = annotations[paragraphNumber][i][2];
+        var annotation_certainty = annotations[paragraphNumber][i][3];
+        var annotation_inputText = annotations[paragraphNumber][i][4];
+        var annotation_keywords = annotations[paragraphNumber][i][5];
+
+        // break loop after annotation has been found
+        break;
+      };
+    }
+
+    // Set global values. This is needed to commit the changes. After worker is done editing the annotation will be deleted and saved as a new annotation including the changes.
+    window.currentSelectionToBeAnnotated.valid = true;
+    window.currentSelectionToBeAnnotated.start_id = annotation_start;
+    window.currentSelectionToBeAnnotated.end_id = annotation_end;
+
+    let allAnnotationButtonsExcludingExampleButtons = $('#annotationButtons > button').not('button.annotationInfoButton');
+    $.each(allAnnotationButtonsExcludingExampleButtons, function(id, token) {
+      let annotationButton = $(token).clone();
+      $(annotationButton).css("margin-right", "5px");
+      $(annotationButton).css("border", "4px solid white");
+      $("#changeAnnotationType-buttons #" + annotation_type).css("border", "4px solid orange");
+      $(annotationButton).prop("disabled",false);
+      $("#changeAnnotationType-buttons").append(annotationButton);
+    });
+
+    window.pressedAnnotationButton = annotation_type;
+    let annotationType_displayName = $("#" + annotation_type).html();
+
+    // first remove all classes and then add class to modalheader for css styling reasons
+    $(".modal-header").removeClass().addClass("modal-header").addClass(window.pressedAnnotationButton);
+    // then extend the modal header text
+    let headerText = "Edit annotation" + ": <u><b>" + annotationType_displayName + "</b></u>";
+    $("#exampleModalLongTitle").html(headerText);
+
+
+    // load modal content
+    $(":radio[value=" + annotation_certainty + "]").prop("checked", true);
+    $('#certaintyModalInput').val(annotation_inputText);
+
+    // load annotation to display all tokens as possible keywords
+    var keywordSelectionDIV = $('#keywordSelection');
+    keywordSelectionDIV.empty();
+    
+    if (annotation_start == annotation_end) {
+      //var annotated_tokens = $("#textToAnnotate #" + annotation_start).clone();
+      //hide keywords section since there the annotation only contains one token
+      $("#keywordSelection-wrapper").addClass("hidden");
+    }
+    else {
+      $("#keywordSelection-wrapper").removeClass("hidden");
+      var annotated_tokens = $("#textToAnnotate #" + annotation_start).nextUntil("#textToAnnotate #" + annotation_end).addBack().next().addBack().clone();
+
+      $.each(annotated_tokens, function(nr, annotatedTokenSpan) {
+        keywordSelectionDIV.append($(annotatedTokenSpan));
+      });
+
+      //remove selectedTokensToBeAnnotated class in keywordSelection div
+      keywordSelectionDIV.children().removeClass();
+    
+      keywordSelectionDIV.children().wrap( "<a class='keywordSelectionButton'></a>" );
+
+      // loop through selected keywords to highlight the ones which were selected by the worker
+      for (var j = annotation_keywords.length -1; j >= 0; j--) {
+        let keyword_parent =$("#keywordSelection #" + annotation_keywords[j] + "").parent();
+        $(keyword_parent).addClass("keywordSelectionButton-selected");
+      }
+
+      //$(this).toggleClass("keywordSelectionButton-selected");
+    }
+
+    // open the modal
+    $('#certaintyModal').modal({
+      keyboard: false
+    });
+
+
+  }
+
+  function deleteAnnotation(IdToDelete) {
+    removeAnnotationNameSpan(IdToDelete + "\\.5");
+    // check if annotations already exist for this paragraph
+    if (paragraphNumber in annotations) {
+      // loop through all already existing annotations
+      for (var i = annotations[paragraphNumber].length -1; i >= 0; i--) {
+        var annotationToDelete_start = annotations[paragraphNumber][i][0];
+        var annotationToDelete_end = annotations[paragraphNumber][i][1];
+        let found = (IdToDelete==annotationToDelete_end);
+        if (found) {
+          // remove annotation for those tokens which belonged to the to be deleted annotation
+          for (var j = annotationToDelete_start; j <= annotationToDelete_end; j++) {
+            removeTokenAnnotation(j);
+          }
+
+          // remove annotation from global annotation array on client
+          window.annotations[paragraphNumber].splice(i, 1);
+          
+          updateWorkerData();
+
+          // break loop after annotation has been found and deleted
+          break;
+        };
+      }
+    }
+
+
+  };
+
+
+  function getPageState(pageNumber) {
+    let numberOfParagraphs = Object.keys(({{text_to_annotate|tojson}})).length;
+    if (pageNumber == -1) {
+      return "instructionsPage"
+    }
+    else if (pageNumber == numberOfParagraphs) {
+      return "finishPage"
+    }
+    else {
+      return "annotationPage"
+    }
+    
+  };
+
+  function updateTextSize() {
+    // update the size of the annotationName and the editIcon to match the current font size in case it was changed by the worker
+    let currentSize = parseInt($("#textToAnnotate").css('font-size').replace('px', ''));
+    let currentSizeAnnotationNameSpan = (currentSize-3) + "px";
+    let currentSizeeditAnnotationIcon = (currentSize+8) + "px";
+    $(".annotationName").css("fontSize", currentSizeAnnotationNameSpan);
+    $(".editAnnotationIcon").css("fontSize", currentSizeeditAnnotationIcon);
+
+  }
+
+  $(document).on('mouseup', function() {
+    let pageState = getPageState(window.paragraphNumber);
+    if (pageState == "annotationPage") {
+      // if the mouse is released somewhere outside the text box, then clear selection immediately, unless modal is open.
+      let modalIsVisible = $('#certaintyModal').is(':visible');
+      if (!modalIsVisible) {
+        if(!($(event.target).is('div#textToAnnotate > span'))){
+          //clear the selected text by user visually
+          clearSelection();
+          //console.log("clear EARLY");
+        }
+      }
+    }
+  });
+  
+  // the mouseup can be done anywhere
+  $('div#textToAnnotate').on('mouseup', '*', function() {
+    // only continue with annotation if mousedown was not done on edit button
+    if (!($(event.target).hasClass('editAnnotationIcon'))) {
+
+      if(isDown){
+        
+        // check if the annotation is valid and return selection if valid
+        let currentSelectionIsValid = isValidAnnotation();
+
+        // set the global currentSelectionToBeAnnotated so that it can then be used by annotation buttons
+        window.currentSelectionToBeAnnotated.valid = currentSelectionIsValid[0];
+        window.currentSelectionToBeAnnotated.start_id = currentSelectionIsValid[1];
+        window.currentSelectionToBeAnnotated.end_id = currentSelectionIsValid[2];
+
+        
+        //enable the annotation buttons as soon as some valid token(s) have been selected
+        if (currentSelectionIsValid[0]) {
+          // enable annotation buttons
+          enableAnnotationButtons();
+          //console.log("yes is valid!");
+        }
+        else {
+          disableAnnotationButtons();
+        }
+
+      }
+    };
+
+    isDown = false;
+
+    //clear the selected text by user visually
+    clearSelection();
+    //console.log("clear late");
+
+  });
+
+
+  // if the mouseup is done between two lines the event handler (as specified above) doesnt relaize it since the click is not done on a child of the div#textToAnnotate. Therefore we need a second handler (with the exact same functionality) which listents to mouseup directly on the div#textToAnnotate
+  $('div#textToAnnotate').on('mouseup', function() {
+    // only continue with annotation if mousedown was not done on edit button
+    if (!($(event.target).hasClass('editAnnotationIcon'))) {
+
+      if(isDown){
+        
+        // check if the annotation is valid and return selection if valid
+        let currentSelectionIsValid = isValidAnnotation();
+
+        // set the global currentSelectionToBeAnnotated so that it can then be used by annotation buttons
+        window.currentSelectionToBeAnnotated.valid = currentSelectionIsValid[0];
+        window.currentSelectionToBeAnnotated.start_id = currentSelectionIsValid[1];
+        window.currentSelectionToBeAnnotated.end_id = currentSelectionIsValid[2];
+
+        
+        //enable the annotation buttons as soon as some valid token(s) have been selected
+        if (currentSelectionIsValid[0]) {
+          // enable annotation buttons
+          enableAnnotationButtons();
+          //console.log("yes is valid!");
+        }
+        else {
+          disableAnnotationButtons();
+        }
+
+      }
+    };
+
+    isDown = false;
+
+    //clear the selected text by user visually
+    clearSelection();
+    //console.log("clear late");
+
+  })
+
+
+  function disableAnnotationButtons() {
+    // disable annotation buttons
+    $('#annotationButtons > button').not( "#annotationButtons .annotationInfoButton" ).prop("disabled",true);
+  };
+
+  function enableAnnotationButtons() {
+    // disable annotation buttons
+    $('#annotationButtons > button').not( "#annotationButtons .annotationInfoButton" ).prop("disabled",false);
+  };
+
+  function isAnnotationNameToken(tokenToBeChecked) {
+    // return true if the token is an "annotationNameToken", such as e.g.: claim/data, hypothesis
+    return !(tokenToBeChecked%1==0);
+  }
+
+  function isValidAnnotation() {
+
+    let selectionByUser = getSelectedTextByUser();
+    let selection_start_id = selectionByUser.selection_start_id;
+    let selection_end_id = selectionByUser.selection_end_id;
+
+    if (parseFloat(selection_start_id) > parseFloat(selection_end_id)) {
+      // make sure that selection_start_id is the lower of the two values
+      var selection_id_lower = selectionByUser.selection_end_id;
+      var selection_id_higher = selectionByUser.selection_start_id;
+    }
+    else {
+      var selection_id_lower = selectionByUser.selection_start_id;
+      var selection_id_higher = selectionByUser.selection_end_id;
+    }
+    
+    if ((selection_id_lower == selection_id_higher) && ((selection_id_lower % 1) != 0) && ((selection_id_higher % 1) != 0)) {
+      // only one annotationNameSpan was selected. Therefore, not valid!
+      return [false, -1, -1];
+    }
+    else {
+      
+      if ((selection_id_lower % 1) != 0) {
+        // adjust lower selection_id as it is an annotationNameSpan
+        var selection_id_lower = (parseFloat(selection_id_lower) + 0.5).toString();
+      }
+      
+      if ((selection_id_higher % 1) != 0) {
+        // adjust higher selection_id as it is an annotationNameSpan
+        var selection_id_higher = (parseFloat(selection_id_higher) - 0.5).toString();
+      }
+      
+      let amountOfTokensSelected = Math.abs((selection_id_higher - selection_id_lower));
+      var valueOfFirstToken = $('#'+selection_id_lower).text();
+      var valueOfLastToken = $('#'+selection_id_higher).text();
+      
+      if (amountOfTokensSelected==1 && isForbiddenToken(valueOfFirstToken) && isForbiddenToken(valueOfLastToken)) {
+        // exactly two tokens were selected and both tokens are forbidden. Hence, buttons can be enabled.
+        return [false, selection_id_lower, selection_id_higher];
+      }
+      else if (amountOfTokensSelected>=1) {
+        // more than one token was selected. Hence, buttons can be enabled.
+
+        if (isForbiddenToken(valueOfLastToken)) {
+          // cut last token since it is forbidden token
+          var selection_id_higher = (parseFloat(selection_id_higher) - 1);
+        }
+
+        if (isForbiddenToken(valueOfFirstToken)) {
+          // cut first token since it is forbidden token
+          var selection_id_lower = (parseFloat(selection_id_lower) + 1);
+        }
+        
+        for (var i = parseFloat(selection_id_lower); i <= parseFloat(selection_id_higher); i++) {
+          $('#'+i).addClass('selectedTokensToBeAnnotated');
+        }
+        return [true, selection_id_lower, selection_id_higher];
+      }
+      else if (amountOfTokensSelected===0){
+        let selectedTokenValue = $("#" + selection_id_lower).text();
+        if (isForbiddenToken(selectedTokenValue)) {
+          // only one button was selected. Check if it is a "forbidden" token such as e.g.: ./,/;/...
+          return [false, selection_id_lower, selection_id_higher];
+        }
+        else {
+          // selected single token is valid
+          $("#"+parseFloat(selection_id_lower)).addClass('selectedTokensToBeAnnotated');
+          return [true, selection_id_lower, selection_id_higher];
+        }
+      }
+      else {
+        return [false, -1, -1];
+      }
+    }
+  }
+
+  </script>
+
+  <script>
+
+    $("button#startAnnotation").click(function() {
+      jumpToPage(getNewParagraphNumber(-1));
+      updateWorkerData();
+      // set the value of the submit button so that worker's attention task input is saved in mturk when user submits the assignment
+      $("#attention_task").val($("#attentionTask").val());
+    });
+    
+    $("button#nextPageButton").click(function() {
+      jumpToPage(getNewParagraphNumber(1));
+      updateWorkerData();
+    });
+    
+    $("button#previousPageButton").click(function() {
+      jumpToPage(getNewParagraphNumber(0));
+      updateWorkerData();
+    });
+    
+    $("button#previousPageButton-feedback").click(function() {
+      jumpToPage(getNewParagraphNumber(0));
+      updateWorkerData();
+    });
+
+    function getNewParagraphNumber(direction) {
+      if (direction == 0) {
+        window.paragraphNumber -= 1;
+      }
+      else if (direction == 1) {
+        window.paragraphNumber += 1;
+      }
+      else if (direction = -1) {
+        window.paragraphNumber = 0;
+      }
+      
+      return window.paragraphNumber;
+    };
+
+    function updateWorkerData() {
+      updateMTurkForm();
+      setAllLocalStorageElements();
+    }
+
+    function updateMTurkForm() {
+      // set the values of the form inputs so that the data is saved in mturk when user submits the assignment
+      $("#submit_annotations").val(JSON.stringify(window.annotations));
+      $("#submit_attention_task").val($("#attentionTask").val());
+      $("#submit_worker_assignment_data").val(JSON.stringify({{worker_assignment_data|tojson}}));
+      $("#submit_surveyAnswers").val(JSON.stringify(window.surveyAnswers));
+      $("#submit_feedback").val($("textarea[name='feedback']").val());
+      $("#submit_logger").val(window.logger);
+    }
+
+    function setAllLocalStorageElements() {
+
+      setLocalStorageElement("lastVisitedPage", (window.paragraphNumber).toString());
+      setLocalStorageElement("informedConsentCheckBox", ($("#informedConsentCheckBox").is(':checked')).toString());
+      setLocalStorageElement("attentionTask", $("#attentionTask").val());
+      setLocalStorageElement("annotations", JSON.stringify(window.annotations));
+      setLocalStorageElement("surveyAnswers", JSON.stringify(window.surveyAnswers));
+      setLocalStorageElement("feedback", $("textarea[name='feedback']").val());
+      setLocalStorageElement("logger", window.logger);
+      
+    }
+
+    function loadAllLocalStorageElements() {
+
+      if (getLocalStorageElement("lastVisitedPage") === null) {
+        window.paragraphNumber = -1;
+      }
+      else {
+        window.paragraphNumber = parseInt(getLocalStorageElement("lastVisitedPage"));
+      }
+
+      if (getLocalStorageElement("informedConsentCheckBox") === null) {
+        window.informedConsentCheckBox = false;
+      }
+      else {
+        window.informedConsentCheckBox = (getLocalStorageElement("informedConsentCheckBox") == 'true');
+      }
+
+      if (getLocalStorageElement("attentionTask") === null) {
+        window.attentionTask = "";
+      }
+      else {
+        window.attentionTask = (getLocalStorageElement("attentionTask"));
+      }
+
+      if (getLocalStorageElement("annotations") === null) {
+        window.annotations = [];
+      }
+      else {
+        window.annotations = JSON.parse(getLocalStorageElement("annotations"));
+      }
+
+      if (getLocalStorageElement("surveyAnswers") === null) {
+        window.surveyAnswers = [];
+      }
+      else {
+        window.surveyAnswers = JSON.parse(getLocalStorageElement("surveyAnswers"));
+      }
+
+      if (getLocalStorageElement("feedback") === null) {
+        window.feedback = "";
+      }
+      else {
+        window.feedback = getLocalStorageElement("feedback");
+      }
+
+      if (getLocalStorageElement("logger") === null) {
+        window.logger = "";
+      }
+      else {
+        window.logger = getLocalStorageElement("logger");
+      }
+
+    }
+
+    
+    function setLocalStorageElement(name, value) {
+      // only set the local storage item if worker is not in preview mode and if browser supports local storage
+      let browserSupportsLocalStorage = (typeof(Storage) !== "undefined");
+      let workerNotInPreviewMode = ({{preview_mode}} != true);
+      if (browserSupportsLocalStorage && workerNotInPreviewMode) {
+        let assignment_id = {{worker_assignment_data|tojson}}.assignment_id;
+        let local_storage_element_name = assignment_id + name;
+
+        localStorage.setItem(local_storage_element_name, value.toString());
+      }
+    }
+
+
+    function getLocalStorageElement(name) {
+      let assignment_id = {{worker_assignment_data|tojson}}.assignment_id;
+      let local_storage_element_name = assignment_id + name;
+      return window.localStorage.getItem(local_storage_element_name);
+    }
+
+
+    function jumpToPage(pageNumber) {
+      let numberOfParagraphs = Object.keys(({{text_to_annotate|tojson}})).length;
+      let pageState = getPageState(pageNumber);
+
+      if (pageState == "instructionsPage") {
+        // jump to instructions page
+        // show instructions page and hide other divs
+        $("div#annotationButtons").addClass("hidden");
+        $("div#userControls").addClass("hidden");
+        $("div#textToAnnotate-wrapper").addClass("hidden");
+        $("div#navigationButtons").addClass("hidden");
+        $("div#progress").addClass("hidden");
+        // scroll to the top
+        window.scrollTo(0, 0);
+        $("div#instructions").removeClass("hidden");
+
+        logger = logger.concat(Date.now(), "/Instructions page", "//");
+
+      }
+      else if (pageState == "finishPage") {
+        updateProgressBar(numberOfParagraphs-1, numberOfParagraphs);
+        // jump to finish page
+        // show finish page and hide other divs
+        $("div#progress").addClass("hidden"); 
+        $("div#annotationButtons").addClass("hidden");
+        $("div#userControls").addClass("hidden");
+        $("div#textToAnnotate-wrapper").addClass("hidden");
+        $("#navigationButtons").addClass("hidden");
+        // scroll to the top
+        window.scrollTo(0, 0);
+        $("div#feedback").removeClass("hidden");
+
+        logger = logger.concat(Date.now(), "/Finish page", "//");
+
+        // print data on heroku for safety reasons
+        printDataOnServer("on FINISH page - COMPONENT");
+
+      }
+      else {
+        // display annotation page with correct paragraph
+        displayTextToAnnotate(pageNumber, window.annotations);
+        updateProgressBar(pageNumber, numberOfParagraphs);
+        $("div#instructions").addClass("hidden");
+        $("div#feedback").addClass("hidden");
+
+
+        $("div#progress").removeClass("hidden");
+        $("div#annotationButtons").removeClass("hidden");
+        $("div#userControls").removeClass("hidden");
+        $("div#textToAnnotate-wrapper").removeClass("hidden");
+        $("div#navigationButtons").removeClass("hidden");
+        $("#previousPageButton").html('&laquo; Instructions');
+
+        logger = logger.concat(Date.now(), "/Annotation page. p=", pageNumber, "//");
+
+        if (pageNumber == (numberOfParagraphs-1)) {
+          // change value of next button
+          $("#nextPageButton").html('Finish &raquo;');
+        }
+        else {
+          $("#nextPageButton").html('Next &raquo;');
+        }
+        if (pageNumber == 0) {
+          // change value of previous button
+          $("#previousPageButton").html('&laquo; Instructions');
+        }
+        else {
+          $("#previousPageButton").html('&laquo; Previous');
+        }
+
+      }
+      // update the size of the annotationName and the edit icon. This is necessary if the size has been changed by the worker.
+      updateTextSize();
+    };
+
+
+    function updateProgressBar(newParagraphNumber, numberOfParagraphs) {
+      let newWidth = (((newParagraphNumber+1)/numberOfParagraphs) * 100) + '%';
+      let newText = '<b>' + (newParagraphNumber+1) + '/' + numberOfParagraphs + '</b>';
+      $("div#progress").removeClass("hidden");
+      $("div.progress-bar").css( "width", newWidth);
+      $("div.progress-bar").html(newText);
+    }
+
+
+  </script>
+</html>

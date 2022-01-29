@@ -1,0 +1,232 @@
+<!-- extend base layout -->
+{% extends "admin_area/base.html" %}
+
+{% block content %}
+
+<head>
+    <script type="text/javascript">
+        $("document").ready(function () {
+            // deactivate all navbar links and then activate the link for the current page
+            $(".base-navbar-link").removeClass("active");
+            $("#navbar-mturk_requester_actions").addClass("active");
+
+            toggleEnvironmentButton();
+
+            $(document).on("click", ".delete-hit-button", function() {
+                let buttonId = $(this).attr("id");
+                // click event of delete-hit-button button is nested in a document click event listener since these buttons are created dynamically
+                deleteHit(buttonId);
+            });
+
+            $(document).on("click", ".expire-hit-button", function() {
+                let buttonId = $(this).attr("id");
+                // click event of expire-hit-button button is nested in a document click event listener since these buttons are created dynamically
+                expireHit(buttonId);
+            });
+
+            $(document).on("click", ".associate-participants-button", function() {
+                let hit_id = $(this).attr("id");
+                let hit_title = $(this).attr("value");
+                console.log("");
+                console.log("button hit id:");
+                console.log(hit_id);
+                console.log("button hit value:");
+                console.log(hit_title);
+                console.log("");
+                // click event of associate-participants-button button is nested in a document click event listener since these buttons are created dynamically
+                associate_participants_with_this_HITs_qualification(hit_id, hit_title);
+            });
+            
+        })
+
+        function toggleEnvironmentButton() {
+            // set the state of the environment button
+            console.log("environment:");
+            console.log({{environment|tojson}});
+            // first enable both buttons
+            $(".environment-button").removeClass("selected").prop('disabled', false);
+            // and then disable selected button
+            $("#" + {{environment|tojson}}).addClass("selected").prop('disabled', true);
+
+        }
+        
+        function deleteHit(hit_id) {
+            // delete hit and reload the page
+            $.getJSON('{{ url_for('admin_area_bp.delete_hit') }}', {'hit_id': hit_id}, function(data) {
+                console.log("response:");
+                console.log(data);
+                // as soon as server returns message that request was handled, reload the page so that deleted hit is not displayed in table anymore
+                location.reload();
+                return false;
+            })
+        }
+        
+        function expireHit(hit_id) {
+            // expire hit and reload the page
+            $.getJSON('{{ url_for('admin_area_bp.expire_hit') }}', {'hit_id': hit_id, 'environment': {{environment|tojson}}}, function(data) {
+                console.log("response:");
+                console.log(data);
+                // as soon as server returns message that request was handled, reload the page so that deleted hit is not displayed in table anymore
+                location.reload();
+                return false;
+            })
+        }
+        
+        function associate_participants_with_this_HITs_qualification(hit_id, hit_title) {
+            if ({{environment|tojson}} == 'production') {
+                $.getJSON('{{ url_for('admin_area_bp.associate_participants_with_this_HITs_qualification', client_mturk_environment='production' ) }}', {'hit_title': hit_title, 'hit_id': hit_id}, function(data) {
+                    console.log("response:");
+                    console.log(data);
+                    // as soon as server returns message that request was handled, reload the page so that deleted hit is not displayed in table anymore
+                    location.reload();
+                    return false;
+                })
+            }
+            else {
+                $.getJSON('{{ url_for('admin_area_bp.associate_participants_with_this_HITs_qualification', client_mturk_environment='sandbox' ) }}', {'hit_title': hit_title, 'hit_id': hit_id}, function(data) {
+                    console.log("response:");
+                    console.log(data);
+                    // as soon as server returns message that request was handled, reload the page so that deleted hit is not displayed in table anymore
+                    location.reload();
+                    return false;
+                })
+            }
+
+        }
+
+    </script>
+</head>
+
+<body>
+    <div class="container text-center">
+
+        <div class="row justify-content-center">
+            <button type="button" class="btn btn-warning environment-button" id="sandbox" onclick="window.location.href='{{ url_for('admin_area_bp.show_HITs', client_mturk_environment='sandbox') }}';">Sandbox</button>
+            <button type="button" class="btn btn-warning environment-button" id="production" onclick="window.location.href='{{ url_for('admin_area_bp.show_HITs', client_mturk_environment='production') }}';">Production</button>
+        </div>
+
+
+        <div class="row justify-content-center" style="margin-top: 3%;">
+        
+            {% with errors = get_flashed_messages(category_filter=["error"]) %}
+                {% if errors %}
+                    {%- for msg in errors %}
+                    <div class="alert alert-danger" role="alert">{{msg}}</div>
+                    {% endfor -%}
+                {% endif %}
+            {% endwith %}
+    
+            {% with infos = get_flashed_messages(category_filter=["info"]) %}
+                {% if infos %}
+                    {%- for msg in infos %}
+                    <div class="alert alert-warning" role="alert">{{msg}}</div>
+                    {% endfor -%}
+                {% endif %}
+            {% endwith %}
+    
+            {% with success = get_flashed_messages(category_filter=["success"]) %}
+                {% if success %}    
+                    {%- for msg in success %}
+                    <div class="alert alert-success" role="alert">{{msg}}</div>
+                    {% endfor -%}
+                {% endif %}
+            {% endwith %}
+        
+        </div>
+
+        <div class="row justify-content-center">
+
+            <h2 class="mt-4 text-white">List of all HITs:</h2>
+
+            <div class="row justify-content-center" style="width: 100%;">
+                <div class="col-auto" id="hits-table-wrapper">
+                <br>
+
+                    <table class="table table-responsive table-sm table-hover" id="hits-table">
+                        <caption><samp>Number of HITs: {{hits|length}}</samp></caption>
+                        <thead>
+                            <tr>
+                                <th scope="col">#</th>
+                                <th scope="col"></th>
+                                <th scope="col">Title</th>
+                                <th scope="col">Created</th>
+                                <th scope="col">Status</th>
+                                <th scope="col">HIT Review Status</th>
+                                <th scope="col">Max Assignments</th>
+                                <th scope="col">Number Of Assignments Pending</th>
+                                <th scope="col">Number Of Assignments Available</th>
+                                <th scope="col">Number Of Assignments Completed</th>
+                                <th scope="col">External Question</th>
+                                <th scope="col"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for hit in hits %}
+                            <tr>
+                                <th scope="row">{{ hits|length - loop.index + 1 }}</th>
+                                <td class="links">
+                                    <a class="table-icon" tabindex="0"
+                                        role="button" data-toggle="popover" data-trigger="manual"
+                                        title="Detailed HIT information" data-html="true"
+                                        data-content="<ul>{% for key, value in hit.items() %}{% if key != 'Question' %}<li>{{ key }}: <small>{{ value }}</small></li>{% endif %}{% endfor %}</ul>"><svg
+                                            width="1em" height="1em" viewBox="0 0 16 16" class="bi bi-search table-icon"
+                                            fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                                            <path fill-rule="evenodd"
+                                                d="M10.442 10.442a1 1 0 0 1 1.415 0l3.85 3.85a1 1 0 0 1-1.414 1.415l-3.85-3.85a1 1 0 0 1 0-1.415z" />
+                                            <path fill-rule="evenodd"
+                                                d="M6.5 12a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11zM13 6.5a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0z" />
+                                        </svg></a>
+                                        &nbsp;
+
+                                        {% if environment == 'sandbox' %}
+                                        <a class="table-icon" href="https://workersandbox.mturk.com/mturk/preview?groupId={{ hit['HITTypeId'] }}" target="_blank"><i class="fa fa-external-link"></i></a>
+                                        {% endif %}
+                                        {% if environment == 'production' %}
+                                        <a class="table-icon" href="https://mturk.com/mturk/preview?groupId={{ hit['HITTypeId'] }}" target="_blank"><i class="fa fa-external-link"></i></a>
+                                        {% endif %}
+                                </td>
+                                <td>{{ hit['Title'] }}</td>
+                                <td>{{ hit['CreationTime'] }}</td>
+                                <td>{{ hit['HITStatus'] }}</td>
+                                <td>{{ hit['HITReviewStatus'] }}</td>
+                                <td>{{ hit['MaxAssignments'] }}</td>
+                                <td>{{ hit['NumberOfAssignmentsPending'] }}</td>
+                                <td>{{ hit['NumberOfAssignmentsAvailable'] }}</td>
+                                <td>{{ hit['NumberOfAssignmentsCompleted'] }}</td>
+                                <td class="xml-column"><a id="xml-popover" tabindex="0" role="button"
+                                        data-toggle="popover" data-trigger="manual"
+                                        title="Content of XML-file associated with this HIT"
+                                        data-content="{{ hit['Question'] }}">EQ</a>
+                                </td>
+                                <td id="action-buttons">
+
+                                {% if hit['HITStatus'] == 'Assignable' or hit['HITStatus'] == 'Unassignable' %}
+                                <button id="{{ hit['HITId'] }}" type="button" class="btn btn-warning expire-hit-button">Expire HIT</button>
+                                {% endif %}
+
+                                {% if hit['HITStatus'] == 'Reviewable' or hit['HITStatus'] == 'Reviewing' %}
+                                <button id="{{ hit['HITId'] }}" type="button" class="btn btn-danger delete-hit-button">Delete HIT</button>
+                                {% endif %}
+
+                                {% if hit['HITStatus'] == 'Reviewable' or hit['HITStatus'] == 'Reviewing' %}
+                                    {% if hit['has_associated_qualification'] == True and hit['number_of_associated_workers'] == 0 %}
+                                    <button id="{{ hit['HITId'] }}" value="{{ hit['Title'] }}" type="button" class="btn btn-info associate-participants-button">Associate participants with this HIT's qualifications</button>
+                                    {% endif %}
+                                {% endif %}
+
+                                </td>
+                            </tr>
+                            {% endfor %}
+
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+</body>
+
+{% endblock %}

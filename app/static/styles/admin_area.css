@@ -1,0 +1,274 @@
+#content {
+    padding: 1%;
+}
+
+
+/* Sticky Footer Classes */
+
+html,
+body {
+    height: 100%;
+}
+
+#page-content {
+    flex: 1 0 auto;
+}
+
+#sticky-footer {
+    flex-shrink: none;
+}
+
+
+/* Other Classes for Page Styling */
+
+body {
+    background: #007bff;
+    background: linear-gradient(to right, #0062E6, #33AEFF);
+}
+
+
+/* Navigation bar */
+
+.base-navbar-link {}
+
+#base-navbar {
+    margin-left: 5%;
+    width: max-content !important;
+}
+
+#logout-buttons {
+    display: flex;
+    align-items: center;
+}
+
+#logout-buttons button {
+    margin-left: 8px;
+}
+
+
+/* all close buttons */
+
+
+.close:hover {
+    background-color: transparent;
+    color: red;
+    text-shadow: 1px 1px black;
+}
+
+.close:focus {
+    background-color: transparent;
+    color: red;
+    text-shadow: 1px 1px black;
+    outline: none;
+    font-weight: 900;
+}
+
+
+/* all tables */
+
+table thead {
+    color: white;
+}
+
+table tbody th {
+    color: white;
+    vertical-align: middle;
+    white-space: nowrap;
+    font-style: italic;
+}
+
+table tbody .links {
+    color: white;
+    vertical-align: middle;
+    white-space: nowrap;
+    font-style: italic;
+}
+
+table tbody td {
+    color: rgba(255, 255, 255, 0.8);
+    vertical-align: middle;
+}
+
+.table-hover tbody tr:hover {
+    color: white;
+    background-color: rgba(0, 0, 0, .075);
+}
+
+table tbody .xml-column {
+    white-space: nowrap;
+}
+
+table caption {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+
+/* mturk requester info page */
+
+
+.popover {
+    max-width: 60%;
+}
+
+.popover-body {
+    max-height: 80vh;
+    overflow-y: auto;
+    white-space: pre-wrap;
+}
+
+#hits-table tbody tr {
+    white-space: nowrap;
+}
+
+#hits-table #action-buttons {
+    text-align: left;
+}
+
+.table-icon {
+    color: white;
+}
+
+.table-icon:hover {
+    color: red;
+}
+
+.table-icon:focus {
+    color: red;
+    outline: none;
+}
+
+#xml-popover:hover {
+    color: red;
+}
+
+#xml-popover:focus {
+    color: red;
+    outline: none;
+}
+
+.environment-button {
+    margin: 2%;
+}
+
+.environment-button:not(.selected) {
+    opacity: 1;
+    background-color: #ffe38e;
+}
+
+.environment-button.selected {
+    opacity: 1;
+}
+
+
+/* assignment table */
+
+.hidden {
+    display: none !important;
+}
+
+#assignments-table thead {
+    color: white;
+}
+
+#assignments-table tbody th {
+    color: white;
+    vertical-align: middle;
+    white-space: nowrap;
+    font-style: italic;
+}
+
+#assignments-table tbody .links {
+    color: white;
+    vertical-align: middle;
+    white-space: nowrap;
+    font-style: italic;
+}
+
+#assignments-table tbody td {
+    color: rgba(255, 255, 255, 0.8);
+    vertical-align: middle;
+}
+
+.table-hover tbody tr:hover {
+    color: white;
+    background-color: rgba(0, 0, 0, .075);
+}
+
+#assignments-table tbody .xml-column {
+    white-space: nowrap;
+}
+
+#assignments-table caption {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.assignmentButtons {
+    white-space: nowrap;
+    text-align: left;
+}
+
+.assignmentButtons button {
+    margin-right: 5px;
+}
+
+#payBonusForm .form-group {
+    width: 90%;
+    text-align: left;
+    margin: 2%;
+}
+
+#rejectAssignmentForm .form-group {
+    width: 90%;
+    text-align: left;
+    margin: 2%;
+}
+
+
+/* qualifications table */
+
+#qualifications-table tr td ul li {
+    white-space: nowrap;
+    text-align: left;
+}
+
+/* check connection */
+
+#connection-successful-icon {
+    color: #00df00;
+}
+
+#connection-failed-icon {
+    color: red;
+}
+
+
+form label.required:after {
+    content: "*";
+    color: red;
+}
+
+/* create HIT form */
+
+#create-hit-input-list input:not([type=checkbox]):not([type=radio]) {
+    width: 80%;
+}
+
+/* create HIT form: all radio buttons */
+
+.custom-control {
+    padding-left: 2.5rem;
+}
+
+/* This is the checked state */
+.custom-radio .custom-control-input:checked~.custom-control-label::before,
+.custom-radio .custom-control-input:checked~.custom-control-label::after {
+    background-color: #28a745;
+    /* this bg image SVG is just a white circle, you can replace it with any valid SVG code */
+    /*background-image: url(data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3E%3Ccircle r='3' fill='%23fff'/%3E%3C/svg%3E); */
+    border-radius: 50%;
+}
+
+/* the shadow; displayed while the element is in focus */
+.custom-radio .custom-control-input:focus~.custom-control-label::before {
+    box-shadow: 0 0 0 1px #fff, 0 0 0 0.2rem rgba(255, 123, 255, 0.25);
+}

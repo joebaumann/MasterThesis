@@ -1,0 +1,171 @@
+<!-- extend base layout -->
+{% extends "admin_area/base.html" %}
+
+{% block content %}
+<head>
+    <script type="text/javascript">
+        $("document").ready(function () {
+
+            toggleEnvironmentButton();
+        })
+
+
+        function toggleEnvironmentButton() {
+            // set the state of the environment button
+            console.log("environment:");
+            console.log({{environment|tojson}});
+            // first enable both buttons
+            $(".environment-button").removeClass("selected").prop('disabled', false);
+            // and then disable selected button
+            $("#" + {{environment|tojson}}).addClass("selected").prop('disabled', true);
+
+        }
+    </script>
+</head>
+<body>
+
+    <div class="container">
+
+        <div class="row justify-content-md-center">
+            <button type="button" class="btn btn-warning environment-button" id="sandbox"
+                onclick="window.location.href='{{ url_for('admin_area_bp.additional_assignments_for_hit', client_mturk_environment='sandbox') }}';">Sandbox</button>
+            <button type="button" class="btn btn-warning environment-button" id="production"
+                onclick="window.location.href='{{ url_for('admin_area_bp.additional_assignments_for_hit', client_mturk_environment='production') }}';">Production</button>
+        </div>
+
+        <div class="row justify-content-center">
+        
+            {% with errors = get_flashed_messages(category_filter=["error"]) %}
+                {% if errors %}
+                    {%- for msg in errors %}
+                    <div class="alert alert-danger" role="alert">{{msg}}</div>
+                    {% endfor -%}
+                {% endif %}
+            {% endwith %}
+    
+            {% with infos = get_flashed_messages(category_filter=["info"]) %}
+                {% if infos %}
+                    {%- for msg in infos %}
+                    <div class="alert alert-warning" role="alert">{{msg}}</div>
+                    {% endfor -%}
+                {% endif %}
+            {% endwith %}
+    
+            {% with success = get_flashed_messages(category_filter=["success"]) %}
+                {% if success %}    
+                    {%- for msg in success %}
+                    <div class="alert alert-success" role="alert">{{msg}}</div>
+                    {% endfor -%}
+                {% endif %}
+            {% endwith %}
+        
+        </div>
+
+        <div class="row justify-content-md-center" style="margin-top: -2%;">
+            <div id="createAdditionalAssignmentsForHIT">
+                <h2 class="mt-4 text-white">Create additional assignments for HIT:</h2>
+                
+                <div class="row">
+            
+                    <form class="needs-validation" action="{{ url_for('admin_area_bp.create_additional_assignments_for_hit') }}" method="post">
+                        <input name='environment' value='{{environment}}' class="hidden" />
+                        <label class="mt-4 text-white required" for="workerid">HIT ID:</label>
+                        <input name="hit_id" id='hit_id' placeholder="HIT ID" type="text" required/>
+                        &nbsp;
+                        <label class="mt-4 text-white required">Number of additional assignments:</label>
+                        <input name="number_of_additional_assignments" id='number_of_additional_assignments' type="number" placeholder="Number of additional assignments" value="1" min="1" max="100" required />
+                        
+                        &nbsp;&nbsp;&nbsp;
+
+                        <input type="submit" id="block-worker-button" class="btn btn-warning" value="Create additional assignments"></input>
+                        
+                        <br/>
+                        <p class="mt-4 text-white">
+                            <i>HITs created with fewer than 10 assignments cannot be extended to have 10 or more assignments.</i>
+                        </p>
+                        
+                    </form>
+        
+                </div>
+
+            </div>
+
+
+
+            <div class="row justify-content-center">
+
+                <h2 class="mt-4 text-white">List of all HITs:</h2>
+    
+                <div class="row justify-content-center" style="width: 100%;">
+                    <div class="col-auto" id="additional-assignments-table-wrapper">
+                    <br>
+    
+                        <table class="table table-responsive table-sm table-hover" id="additional-assignments-table">
+                            <caption><samp>Number of HITs: {{hits|length}}</samp></caption>
+                            <thead>
+                                <tr>
+                                    <th scope="col">#</th>
+                                    <th scope="col"></th>
+                                    <th scope="col">Title</th>
+                                    <th scope="col">Created</th>
+                                    <th scope="col">Status</th>
+                                    <th scope="col">HIT Review Status</th>
+                                    <th scope="col">Max Assignments</th>
+                                    <th scope="col">Number Of Assignments Pending</th>
+                                    <th scope="col">Number Of Assignments Available</th>
+                                    <th scope="col">Number Of Assignments Completed</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for hit in hits %}
+                                <tr>
+                                    <th scope="row">{{ hits|length - loop.index + 1 }}</th>
+                                    <td class="links">
+                                        <a class="table-icon" tabindex="0"
+                                            role="button" data-toggle="popover" data-trigger="manual"
+                                            title="Detailed HIT information" data-html="true"
+                                            data-content="<ul>{% for key, value in hit.items() %}{% if key != 'Question' %}<li>{{ key }}: <small>{{ value }}</small></li>{% endif %}{% endfor %}</ul>"><svg
+                                                width="1em" height="1em" viewBox="0 0 16 16" class="bi bi-search table-icon"
+                                                fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                                                <path fill-rule="evenodd"
+                                                    d="M10.442 10.442a1 1 0 0 1 1.415 0l3.85 3.85a1 1 0 0 1-1.414 1.415l-3.85-3.85a1 1 0 0 1 0-1.415z" />
+                                                <path fill-rule="evenodd"
+                                                    d="M6.5 12a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11zM13 6.5a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0z" />
+                                            </svg></a>
+                                            &nbsp;
+                                            {% if environment == 'production' %}
+                                                <a class="table-icon" href="https://worker.mturk.com/mturk/preview?groupId={{ hit['HITTypeId'] }}" target="_blank"><i class="fa fa-external-link"></i></a>
+                                            {% endif %}
+                                            {% if environment == 'sandbox' %}
+                                                <a class="table-icon" href="https://workersandbox.mturk.com/mturk/preview?groupId={{ hit['HITTypeId'] }}" target="_blank"><i class="fa fa-external-link"></i></a>
+                                            {% endif %}
+                                    </td>
+                                    <td>{{ hit['Title'] }}</td>
+                                    <td>{{ hit['CreationTime'] }}</td>
+                                    <td>{{ hit['HITStatus'] }}</td>
+                                    <td>{{ hit['HITReviewStatus'] }}</td>
+                                    <td>{{ hit['MaxAssignments'] }}</td>
+                                    <td>{{ hit['NumberOfAssignmentsPending'] }}</td>
+                                    <td>{{ hit['NumberOfAssignmentsAvailable'] }}</td>
+                                    <td>{{ hit['NumberOfAssignmentsCompleted'] }}</td>
+                                    
+                                </tr>
+                                {% endfor %}
+    
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+
+
+            </div>
+        </div>
+
+
+    </div>
+</body>
+
+
+{% endblock %}

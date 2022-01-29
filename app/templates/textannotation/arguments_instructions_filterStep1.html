@@ -1,0 +1,244 @@
+{% extends "textannotation/textAnnotation_filterStep1.html" %}
+
+{% block instructions %}
+<div>
+  <h4><u><b>Introduction and Instructions</b></u></h4>
+  <h5><b>Overview</b></h5>
+  <p>
+    We invite you to participate in an argument discovery study. We are exploring the effective discovery of arguments in scientific publications. After giving your consent, you will be presented three paragraphs of scientific publications which are to be annotated. The goal of this study is to simplify the creation of argument-annotated gold standard gold standard training data.
+  </p>
+  <p>
+    You will be presented three paragraphs of scientific publications. For each of these paragraphs you should annotate the three following components in the text: <b><i>Own Claim</i></b>, <b><i>Background Claim</i></b>, <b><i>Data</i></b>.
+  </p>
+
+  <p>
+    A claim corresponds to the point an arguer is trying to make. A claim can be identified by looking at certain key phrases such as "<i>we think ...</i>" or "<i>we suggest ...</i>"<br>Interestingly, in scientific publications we can notice two types of claims:
+    <ul>
+      <li>Own Claims: claims that are made about the work of the authors themselves.</li>
+      <li>Background Claims: claims that describe the scientific community or the background of the work.</li>
+    </ul>
+    <h6><b>What is an <u>Own Claim</u>?&nbsp</b>
+    <span  class="example">
+      <a id="example-ownclaim" tabindex="0" class="btn btn-sm btn-info" role="button" data-toggle="popover" data-trigger="focus" data-html="true" title="Examples for <u>Own Claims</u>:" data-content='
+      <p>
+        "We provide detailed reasons why and how <span class="ownclaim firstToken lastToken">the inverse operation can improve the results </span> . For a simplified case, we show that the direction of deformed vertices from inverse skinning is a linear function of joint rotation, while in the forward approach, that direction is kept as a constant. This demonstration provides for the first time a clear theoretical reason why <span class="ownclaim firstToken lastToken">inverse operation is required </span> . We formulate editing geometry in rest pose as an optimization problem and propose a unified framework which can be implemented on high-end commercial packages while allowing any proprietary skinning operators to be incorporated."
+      </p>
+      <p>
+        "We then proceed to investigate the question of whether pre-conditions can be determined automatically.  <span class="ownclaim firstToken lastToken">We devise a promising solution which employs Support Vector Machine </span> (SVM)  <span class="ownclaim firstToken lastToken">learning theory </span> ."
+      </p>
+      '>
+      <svg width="1em" height="1em" viewBox="0 0 16 16" class="bi bi-info-circle" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M8 15A7 7 0 1 0 8 1a7 7 0 0 0 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/><path d="M8.93 6.588l-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588z"/><circle cx="8" cy="4.5" r="1"/></svg><span id="exampleButtonText">&nbspExample</span></a>
+    </span></h6>
+    <i>Own Claim</i> is an argumentative statement that closely relates to the authors’ own work. In general, it provides really specific information.
+  </p>
+  <h6><b>What is a <u>Background Claim</u>?&nbsp</b>
+    <span class="example">
+      <a id="example-backgroundclaim" tabindex="0" class="btn btn-sm btn-info" role="button" data-toggle="popover" data-trigger="focus" data-html="true" title="Examples for <u>Background Claims</u>:" data-content='
+      <p>
+        "With the help of modelling tools or capture devices, <span class="backgroundclaim firstToken lastToken">complicated 3D character models are widely used in fields of entertainment, virtual reality, medicine etc </span> . <span class="backgroundclaim firstToken lastToken">The range of breathtaking realistic 3D models is only limited by the creativity of artists and resolution of devices </span> . Driving 3D models in a natural and believable manner is not trivial, especially when the model is very detailed and playback of animation becomes quite heavy and time consuming.
+      </p>
+      <p>
+        "As has been recognized in the robotics literature, <span class="backgroundclaim firstToken lastToken">the control of broad skilled repertoires of motion remains very much an open problem even for 2D articulated figures </span> . Fig. 1 illustrates the 3D dynamic character autonomously performing a complex control sequence composed of individual controllers responsible for falling reactions, rolling-over, getting up, and balancing in gravity."
+      </p>
+      '>
+      <svg width="1em" height="1em" viewBox="0 0 16 16" class="bi bi-info-circle" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M8 15A7 7 0 1 0 8 1a7 7 0 0 0 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/><path d="M8.93 6.588l-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588z"/><circle cx="8" cy="4.5" r="1"/></svg><span id="exampleButtonText">&nbspExample</span></a>
+    </span></h6>
+    In contrast to the sub-category own claim presented before, <i>Background Claim</i> is an argumentative statement about the <u>background of authors’ work</u>, such as related work or common practices. So these claims do not relate directly to the work presented in the subject paper but express a general believe or a general attitude regarding the domain.
+  </p>
+  <p>
+    <h6><b>What is <u>Data</u>?&nbsp</b>
+      <span class="example">
+        <a id="example-data" tabindex="0" class="btn btn-sm btn-info" role="button" data-toggle="popover" data-trigger="focus" data-html="true" title="Examples for <u>Data</u>:" data-content='
+        <p>
+          "The data needed for these methods grows with the number of examples, but arbitrary deformations can be approximated as a result. Simpler parametric skinning approaches (of which SSD is the prototype) have a fixed number of parameters; these have also seen some development in recent years [<span class="data firstToken lastToken">6 </span> ], [<span class="data firstToken lastToken">7 </span> ]. Skinning using free form lattices [<span class="data firstToken lastToken">8 </span> ], [<span class="data firstToken lastToken">9 </span> ] or NURBS curves [<span class="data firstToken lastToken">10 </span> ] instead of skeletons to drive character surface are also common practices in the entertainment production. Our framework implements existing PSD theory and the distinction is that we insert an optimization module into the PSD pipeline by applying a unified inverse approach assuming the knowledge of basic skinning is unavailable."
+        </p>
+        <p>
+          "For example, if <span class="data firstToken lastToken">researcher A creates a walking controller for a dynamic character while researcher B creates a running controller for the same articulated model </span> , it would be beneficial if they could share their controllers (perhaps through an e-mail exchange) and easily create a composite controller enabling the character to both walk and run.""
+        </p>
+        <p>
+          "Comprehensive solutions must aspire to distill and integrate knowledge from biomechanics, robotics, control, and animation. Models for human motion must also meet a particularly high standard, given <span class="data firstToken lastToken"> our familiarity with what the results should look like </span> ."
+        </p>
+        '>
+        <svg width="1em" height="1em" viewBox="0 0 16 16" class="bi bi-info-circle" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M8 15A7 7 0 1 0 8 1a7 7 0 0 0 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/><path d="M8.93 6.588l-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588z"/><circle cx="8" cy="4.5" r="1"/></svg><span id="exampleButtonText">&nbspExample</span></a>
+      </span></h6>
+    <i>Data</i> represents a <u>fact</u> that serves as evidence for or against a claim. It gives answer to the questions: What are the facts supporting the claim? What is the evidence? Why should someone believe this? In which particular case does the claim hold? It can for example be some kind of knowledge or an observation or even the result of an experiment. In scientific writing, citations often correspond to data, for example when the authors are referring to previous results to support their hypothesis.
+    Sometimes, the authors use examples to support their argumentation. Therefore, in many cases, examples correspond to data.
+    Especially when presenting results, the authors often refer to tables or figures in order to support their claims. In such a case, a figure corresponds to data. Always make sure that you only mark the minimal spans.
+  </p>
+
+  <p>
+    <h5><b>Steps</b></h5>
+      Carefully read all the instructions.
+
+      <b>Always read the whole text from the beginning to the end to get an overview about the structure as well as about the overall content</b>. Then proceed to annotate the text by looking at one sentence at a time.
+
+      Thank you! We very much appreciate the time that you put into helping us with our research.
+  </p>
+  <p>
+  <h5><b>How to annotate?</b></h5>
+    <h6 style="color: #0c5460;">
+      <i class="fa fa-retweet fa-lg" aria-hidden="true"></i>&nbsp;<b><u>For each sentence</u> you should do the following:</b>
+    </h6>
+    <ul style="border-left: 0.1em solid #0c5460;margin-left: 0.7em;">
+      <b>
+      <li>Decide if the sentence (or a part of the sentence) is of type <i>Data</i> or Claim and in case you identify a Claim, choose one of the two subcategories <i>Background Claim</i> and <i>Own Claim</i> (<span style="color: red;"><i>If not, continue with the next sentence!</i></span>)
+      <li><span style="color: green;"><i>If yes</i></span>, select these words with your mouse and press on one the corresponding button above the text.</li>
+      <ul>
+        <li>Choose how certain you are about this annotation on a scale from 1 to 3.<br><small><i>(1: I am not sure at all / 3: I am sure this annotation is correct)</i></small></li>
+        <li>Select those words which made you decide to do this annotation.</li>
+        <li>Explain in your own words, what made you do this annotation.</li>
+        <li>Confirm your annotation by clicking on the button <span style="background-color: #007bff;color: white;font-weight: 400;border-radius: .25rem;">&nbsp;Save Annotation&nbsp;</span>.</li>
+      </ul>
+      </b>
+    </ul>
+  </p>
+  
+  <p>
+    <ul class="importantInstructionInfo">
+      <li class="list-group-item list-group-item-info"><b><u>Important</u>:</b><br>
+        <ul>
+          <li>The size of an annotation can be a single word, a few words, or a sentence!</li>
+          <li>An annotation <b>can not</b> be longer than one sentence!</li>
+          <li>The same word <b>can not be annotated twice</b>!</li>
+          <li>Please always try to annotate the minimal text span and omit conjunctions, such as ”because”, when they are not part of an argument but rather connecting multiple.</li>
+          <li>The annotated span must be understandable on its own.</li>
+          <li>Try to <b>annotate as many argumentative components as possible</b>!</li>
+        </ul>
+      </li>
+    </ul>
+  </p>
+  
+  <p>
+		<div>
+			<p><h5><b>Payment Information</b></h5>
+        <p>
+          The final reward consists of two parts: base reward & bonus payment.
+          The base reward is <b>$2,20</b> for every participant.
+          In addition to the base reward, a bonus payment is paid to every participant. The more argumentative components you annotate correctly, the higher your bonus payment will be. We will pay a bonus of up to a maximum of <b>$3,60</b>.
+        </p>
+      </p>
+    </div>
+  </p>
+
+  <p>
+    <ul class="importantInstructionInfo">
+      <li class="list-group-item list-group-item-info"><b><u>Important</u>:</b><br>
+        <ul>
+          <li>Before you can start annotating the paragraphs, you have to solve a short <b>Pop Quiz</b> which consists of 3 single choice questions.</li>
+          <li>Make sure to carefully <b>read the instructions before</b> answering the Pop Quiz questions.</li>
+          <li>Once you have finished the Pop Quiz (by pressing the <span style="background-color: #28a745;border-color: #28a745;color: #fff;font-weight: 500;border-radius: .25rem;letter-spacing: 1px;">&nbsp;Continue&nbsp;</span> button), you <b>can not go back anymore</b>. Therefore, do not press it before you have answered all three questions.</li>
+        </ul>
+      </li>
+    </ul>
+  </p>
+  
+  <p>
+		<div>
+			<p><h5><b>Informed Consent</b></h5>
+        <p>
+          Participation requires that you give your informed consent. Before proceeding, please consider the following information.
+        </p>
+        <p>
+          <ul>
+            <li>The task consists of annotating Own Claim, Background Claim, Data in three paragraphs of a scientific paper.</li>
+            <li>The task will take about 35 minutes to complete.</li>
+            <li>You will receive a qualification so that in the future we know that you have worked for us before. This is important so that we can design our experiments.</li>
+            <li>There are no risks or benefits of any kind involved in this study.</li>
+            <li>You will be paid for your participation as specified under <i>Payment Information</i> above.</li>
+            <li>Your individual privacy will be maintained in all published and written data resulting from this task. Participation is voluntary.</li>
+            <li>At any point, you may decide to stop participating without penalty.</li>
+          </ul>
+        </p>
+        <p>
+          By ticking the box below you give your informed consent and you certify that you have read this form and agree to participate in accordance with the above conditions.
+        </p>
+        <!--<div class="alert alert-danger" role="alert">
+          <b>IF YOU DO NOT ACCEPT THE CONDITIONS BY CHECKING THE BOX BELOW, YOUR WORK WILL BE REJECTED AND YOU SHOULD STOP WORKING NOW.</b>
+        </div>-->
+        <p>
+          &emsp;<input type="checkbox" name="informedConsentCheckBox" id="informedConsentCheckBox">&emsp;I agree to the above conditions<br>
+        </p>
+      </p>
+    </div>
+  </p>
+
+  <hr>
+    	
+</div>
+
+
+
+<script type="text/javascript">
+
+
+  $("document").ready(function() {
+    updateStartButton();
+    updateConsentCheckBox();
+
+    $("#informedConsentCheckBox").click(function() {
+      // enable start button as soon es conditions have been accepted
+      updateStartButton();
+      updateConsentCheckBox();
+    });
+
+
+    // makes sure that example popovers are dismissed on the user’s next click of a different element than the toggle element
+    $('.popover-dismiss').popover({
+      trigger: 'focus'
+    })
+
+    $(document).on("click", "a[id^=example-]", function(){
+      // click event of example buttons is nested in a document click event listener since example info buttons are created dynamically
+      // log every time an example button is clicked
+      logger = logger.concat(Date.now(), "/", $(this).attr("id"), " button clicked//");
+      return false;
+    });
+
+    // clone example button and adjust design
+    var example_ownClaim_clone = $("#example-ownclaim").clone().removeClass("btn-info").addClass("btn-basic annotationInfoButton").popover({placement: 'bottom'});
+    var example_backgroundClaim_clone = $("#example-backgroundclaim").clone().removeClass("btn-info").addClass("btn-basic annotationInfoButton").popover({placement: 'bottom'});
+    var example_data_clone = $("#example-data").clone().removeClass("btn-info").addClass("btn-basic annotationInfoButton").popover({placement: 'bottom'});
+    
+    // remove text and append to annotation button
+    $(example_ownClaim_clone).find("#exampleButtonText").remove().end().insertAfter("#ownclaim");
+    $(example_backgroundClaim_clone).find("#exampleButtonText").remove().end().insertAfter("#backgroundclaim");
+    $(example_data_clone).find("#exampleButtonText").remove().end().insertAfter("#data");
+
+    
+  });
+
+  function updateStartButton() {
+    if ({{preview_mode}} == true) {
+      // do not enable start button in preview mode
+      $('#startAnnotation').prop("disabled",true);
+      $('#startAnnotationButton').attr('title', 'Accept the HIT to start working.').tooltip('_fixTitle');
+    }
+    else if (!($("#informedConsentCheckBox").is(':checked'))) {
+      // do not enable start button since conditions were not yet accepted
+      $('#startAnnotation').prop("disabled",true);
+      $('#startAnnotationButton').attr('title', 'Agree to the above conditions to start working.').tooltip('_fixTitle');
+    }
+    else {
+      // enable start button
+      $('#startAnnotation').prop("disabled",false);
+      $('#startAnnotationButton').attr('title', 'Press to start!').tooltip('_fixTitle');
+    }
+    updateWorkerData();
+  };
+
+  function updateConsentCheckBox() {
+    if ({{preview_mode}} == true) {
+      // do not enable consent check box in preview mode
+      $('#informedConsentCheckBox').prop("disabled",true);
+
+    }
+    else {
+      $('#informedConsentCheckBox').prop("disabled",false);
+
+    }
+  };
+
+
+</script>
+
+{% endblock %}

@@ -1,0 +1,802 @@
+div.hidden {
+    display: none !important;
+}
+
+button.hidden {
+    display: none !important;
+}
+
+p.hidden {
+    display: none !important;
+}
+
+ul.hidden {
+    display: none !important;
+}
+
+#instructions {
+    padding: 3px;
+}
+
+.importantInstructionInfo {
+    padding: 2px;
+    max-width: fit-content;
+}
+
+#textToAnnotate-wrapper {
+    flex: 1;
+    padding: 5pt;
+    border: 2px dashed lightgray;
+    margin-right: 0px;
+    border-radius: 10px;
+    height: 90%;
+    font-size: 80%;
+}
+
+
+
+.firstToken {
+    border-top-left-radius: 4px;
+    border-bottom-left-radius: 4px;
+}
+
+.lastToken {
+    border-top-right-radius: 4px;
+    border-bottom-right-radius: 4px;
+}
+
+#relationButtons {
+    margin: auto;
+    margin-bottom: 15px;
+    padding: 10px;
+    background-color: #e5f3f9;
+    width: 45%;
+    border-radius: 10px;
+}
+
+/* These CSS classes where created so that annotation button background colors have background opacity 1. If other colors are chosen for relation buttons, then these colors have to be adjusted as they are not adjusted dynamically. */
+#relationButtons #supports {
+    background-color: rgb(244, 177, 131) !important;
+}
+
+#relationButtons #contradicts {
+    background-color: rgb(255, 217, 102) !important;
+}
+
+#relationButtons #semanticallysame {
+    background-color: rgb(169, 209, 142) !important;
+}
+
+/* --- */
+
+
+#userControls {
+    margin: auto;
+    margin-top: 5px;
+    margin-bottom: 5px;
+    width: 60%;
+    border-radius: 10px;
+    margin-left: 23%;
+    /*padding: 3px;*/
+    /*border: 2px solid lightgrey;*/
+}
+
+.relationInfoButton {
+    color: black !important;
+    background-color: white !important;
+    border-top-left-radius: 0px !important;
+    border-bottom-left-radius: 0px !important;
+    padding: 5px;
+}
+
+
+.close:hover {
+    background-color: transparent;
+    color: red !important;
+    text-shadow: 1px 1px black;
+}
+
+.close:focus {
+    background-color: transparent;
+    color: red !important;
+    text-shadow: 1px 1px black;
+    outline: none;
+    font-weight: 900;
+}
+
+
+.selectedTokensToBeAnnotated {
+    text-decoration: underline;
+    font-weight: 600;
+    color: blueviolet !important;
+}
+
+.tooltip-wrapper {
+    display: inline-block;
+    /* display: block works as well */
+    margin: 5px;
+    /* make some space so the tooltip is visible */
+}
+
+.tooltip-wrapper .btn[disabled] {
+    /* don't let button block mouse events from reaching wrapper */
+    pointer-events: none;
+}
+
+.tooltip-wrapper .btn {
+    border: 15px;
+    border-color: brown;
+}
+
+.tooltip-wrapper.disabled {
+    /* OPTIONAL pointer-events setting above blocks cursor setting, so set it here */
+    cursor: not-allowed;
+}
+
+
+button {
+    text-decoration: none;
+    display: inline-block;
+    padding: 8px 16px;
+}
+
+button:hover {
+    background-color: #8ea8c0;
+    color: black;
+}
+
+.previous {
+    background-color: #bedaf5;
+    color: black;
+    margin: 10px;
+    float: right;
+}
+
+#previousPageButton-feedback {
+    background-color: #bedaf5;
+    color: black;
+    margin: 10px;
+}
+
+#submitButton {
+    margin: 10px;
+    background-color: #ec7211;
+}
+
+.next {
+    background-color: #bedaf5;
+    color: black;
+    margin: 10px;
+}
+
+#startAnnotationButton {
+    width: 99.225vw;
+    position: relative;
+    margin-left: -49.59vw;
+    left: 50%;
+}
+
+#progress {
+    width: 60%;
+    height: 1.3rem;
+    padding: 1px;
+    border: 2px solid black;
+    border-radius: 5px;
+    margin: auto;
+    margin-top: 15px;
+    margin-bottom: 15px;
+}
+
+.progress-bar {
+    border-radius: 2px;
+}
+
+
+#nextPageButton {
+    left: 15px;
+    bottom: 20px;
+}
+
+
+#feedback-textbox {
+    height: 20%;
+    margin: 15px;
+}
+
+#smallerTextButton {
+    width: 32px;
+    font-size: x-small;
+    border-top-right-radius: 0px;
+    border-bottom-right-radius: 0px;
+    color: black;
+    padding: .1rem .1rem;
+}
+
+#biggerTextButton {
+    width: 32px;
+    font-size: large;
+    margin-right: 100px;
+    border-top-left-radius: 0px;
+    border-bottom-left-radius: 0px;
+    color: black;
+    padding: .1rem .1rem;
+}
+
+
+
+.editAnnotationIcon {
+    position: relative;
+    top: -3px;
+}
+
+
+div .likert {
+    list-style: none;
+    width: 100%;
+    margin: 0;
+    padding: 0 0 10px;
+    display: block;
+    border-bottom: 2px solid #efefef;
+}
+
+div .likert:last-of-type {
+    border-bottom: 0;
+}
+
+div .likert:before {
+    content: '';
+    position: relative;
+    top: 20px;
+    left: 16%;
+    display: block;
+    /*background-color:#efefef;*/
+    background-image: linear-gradient(to right, rgba(247, 3, 3, 0.5), white, rgb(2, 168, 2, 0.5));
+    height: 1rem;
+    width: 61%;
+}
+
+div .likert li {
+    display: inline-block;
+    width: 30%;
+    text-align: center;
+    vertical-align: top;
+    cursor: pointer;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+div .likert li input[type=radio] {
+    display: block;
+    position: relative;
+    top: 0;
+    left: 50%;
+    margin-left: -6px;
+    display: block;
+    position: relative;
+    cursor: pointer;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    width: 1.5rem;
+    height: 1.5rem;
+}
+
+div .likert li label {
+    width: 100%;
+    margin-top: 10px;
+    cursor: pointer;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+.modal-body {
+    font-size: small;
+}
+
+.modal-body p {
+    margin: 0;
+}
+
+#switchSelectedAnnotations-wrapper {
+    max-width: fit-content;
+    max-height: fit-content;
+    margin: 0px;
+    top: 7px;
+}
+
+.switchSelectedAnnotations {
+    color: blue;
+    opacity: 0.7;
+}
+
+#keywordSelection-wrapper {
+    margin-bottom: 1rem;
+}
+
+#keywordSelection-wrapper .col {
+    padding: 0;
+}
+
+#keywordSelection_1 {
+    width: fit-content !important;
+    margin-left: 1%;
+    flex: 1;
+    padding: 3px;
+    border: 2px dashed lightgray;
+    width: 90%;
+    border-radius: 10px;
+    height: 90%;
+}
+
+#keywordSelection_2 {
+    width: fit-content !important;
+    margin-left: 1%;
+    flex: 1;
+    padding: 3px;
+    border: 2px dashed lightgray;
+    width: 90%;
+    border-radius: 10px;
+    height: 90%;
+}
+
+.keywordSelectionButton {
+    /*border: 5px solid red;*/
+    padding: 0;
+    border: none;
+    background: none;
+}
+
+.keywordSelectionButton.keywordSelectionButton-selected:hover {
+    background-color: rgb(255, 180, 42);
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+}
+
+
+.keywordSelectionButton:not(.keywordSelectionButton-selected):hover {
+    background-color: rgba(255, 180, 42, 0.418);
+    border-radius: 4px;
+    box-shadow: 0 2px #999;
+    border: none;
+    cursor: pointer;
+}
+
+
+.keywordSelectionButton-selected {
+    background-color: orange;
+    box-shadow: 0 4px #666;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+}
+
+
+/* Pilots Finish Survey */
+
+#finishTable {
+    width: 90%;
+    margin-top: 1%;
+}
+
+#finishTable tr {
+    border-top: 2px solid #dee2e6;
+}
+
+#finishTable tr:last-of-type {
+    border-bottom: 5px solid #dee2e6;
+}
+
+#finishTable tr:first-of-type {
+    border-top: 5px solid #dee2e6;
+}
+
+#finishTable .surveyQuestion {
+    font-size: 80%;
+    width: 50%;
+    vertical-align: middle;
+    padding: 4px;
+}
+
+#finishTable [class^='surveyLikertCell'] {
+    font-size: 80%;
+    white-space: nowrap;
+    width: 30%;
+    text-align: center;
+    vertical-align: middle;
+    border-left: 2px dashed #dee2e6;
+    padding: 0%;
+}
+
+#finishTable .surveyLikertRadioButtons {
+    text-align: center;
+    vertical-align: middle;
+    border-left: 2px dashed gray;
+}
+
+
+div .surveyLikert {
+    list-style: none;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    display: block;
+    border-bottom: 2px solid #efefef;
+}
+
+div .surveyLikert:last-of-type {
+    border-bottom: 0;
+}
+
+div .surveyLikert:before {
+    content: '';
+    position: relative;
+    top: 15px;
+    left: 19%;
+    display: block;
+    /*background-color:#efefef;*/
+    background-image: linear-gradient(to right, rgba(247, 3, 3, 0.5), white, rgb(2, 168, 2, 0.5));
+    height: 0.7rem;
+    width: 61%;
+}
+
+div .surveyLikert li {
+    display: inline-block;
+    width: 30%;
+    text-align: center;
+    vertical-align: top;
+    cursor: pointer;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+div .surveyLikert li input[type=radio] {
+    display: block;
+    position: relative;
+    top: 0;
+    left: 46%;
+    margin-left: -6px;
+    display: block;
+    position: relative;
+    cursor: pointer;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    width: 1.2rem;
+    height: 1.2rem;
+}
+
+div .surveyLikert li label {
+    width: 100%;
+    margin-top: 0px;
+    cursor: pointer;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+
+.annotationForRelation {
+    padding: 0;
+    border: none;
+    background: none;
+}
+
+/* a tags to select annotations */
+
+.annotationForRelation:hover {
+    background-color: rgb(255, 165, 0, 0.7);
+    border-radius: 4px;
+    box-shadow: 0 2px #999;
+    border: none;
+    cursor: pointer;
+}
+
+.annotationForRelation:hover>span {
+    background-color: transparent;
+    border-bottom: none;
+}
+
+.annotationForRelation:active {
+    background-color: orange;
+    box-shadow: 0 4px black;
+}
+
+.annotationForRelation:focus {
+    outline: none;
+}
+
+.annotationForRelation.selected {
+    border-radius: 4px;
+    box-shadow: 0 2px #999;
+    border: none;
+    cursor: pointer;
+    background-color: rgb(255, 165, 0);
+    box-shadow: 0 4px black;
+}
+
+.annotationForRelation.selected>span {
+    background-color: transparent;
+    border-bottom: none;
+}
+
+.annotationForRelation.disabled {
+    pointer-events: none;
+    cursor: default;
+}
+
+
+/* relations table */
+
+
+#relationsTable {
+    flex: 1;
+    /*padding: 5pt;*/
+    padding-right: 0px;
+    border-radius: 10px;
+    height: 90%;
+}
+
+#tableHeader {
+    border-top: 3px solid lightgray;
+}
+
+.table .relationHeader {
+    text-align: center;
+    white-space: nowrap;
+    width: 1%;
+}
+
+.table thead th {
+    border-bottom: none;
+}
+
+.table td,
+.table th {
+    padding: .2rem;
+    border-top: 1px solid white;
+    font-size: 70%;
+}
+
+.table .relation {
+    text-align: center;
+    vertical-align: middle;
+    font-style: italic;
+    /* white-space: nowrap; */
+    width: 1%;
+    border-left: 3px solid white;
+    border-right: 3px solid white;
+}
+
+.table .textColumn {
+    vertical-align: middle;
+    width: auto;
+}
+
+.table .editRelationColumn {
+    text-align: center;
+    vertical-align: middle;
+    background: white;
+}
+
+.annotationName {
+    font-size: 70% !important;
+}
+
+/* TENTATIVE table row */
+
+#TableRow-TENTATIVE {
+    font-style: italic;
+}
+
+
+.table #TableRow-TENTATIVE .relation {
+    font-weight: bolder;
+    color: red;
+}
+
+#annotationArea-wrapper {
+    margin: auto;
+    /*margin-bottom: 15px;*/
+    padding: 3px;
+    width: 100%;
+    border-radius: 10px;
+}
+
+/* Example popovers */
+
+
+.example {
+    color: white;
+}
+
+/* Popover */
+.popover {
+    border: 2px solid rgba(58, 176, 195, .5);
+    /*box-shadow: 0 0 0 0.2rem rgba(58,176,195,.5);*/
+    min-width: 30%;
+    max-width: 60%;
+}
+
+/* Popover Header */
+.popover-header {
+    background-color: #18a2b8;
+    color: #FFFFFF;
+    font-size: 20px;
+    text-align: center;
+    border-top-left-radius: 3px;
+    border-top-right-radius: 3px;
+}
+
+/* Popover Body */
+.popover-body {
+    background-color: slategrey;
+    color: #FFFFFF;
+    /* padding: 25px; */
+    border-bottom-left-radius: 3px;
+    border-bottom-right-radius: 3px;
+}
+
+
+
+#annotationArea-wrapper-example {
+    margin: auto;
+    /*margin-bottom: 15px;*/
+    padding: 0px;
+    width: 100%;
+    height: 100%;
+    border-radius: 10px;
+}
+
+#relationsTable-example {
+    flex: 1;
+    /*padding: 5pt;*/
+    padding-right: 0px;
+    border-radius: 10px;
+    height: 90%;
+    min-width: 60% !important;
+}
+
+#relationsTable-example .table {
+    margin-bottom: 0;
+}
+
+#relationsTable-example .table .relation {
+    text-align: center;
+    vertical-align: middle;
+    font-style: italic;
+    /* white-space: nowrap; */
+    width: 1%;
+    border-left: 3px solid slategrey;
+    border-right: 3px solid slategrey;
+}
+
+
+#relationsTable-example .table td,
+#relationsTable-example .table th {
+    padding: .2rem;
+    border-top: 1px solid slategrey;
+    font-size: 70%;
+}
+
+#annotationArea-wrapper-example .annotationName {
+    font-size: 70% !important;
+    /* decrease underline of annotationName-spans for annotated argument components in text area of example popovers */
+    border-bottom-width: 1.5px;
+}
+
+#annotationArea-wrapper-example thead {
+    text-align: left;
+}
+
+
+/* filter page */
+
+.checkbutton {
+    margin: 10px;
+}
+
+#checkFilterAnswerStep1 {
+    left: 15px;
+    bottom: 20px;
+    margin: 10px;
+    font-weight: 600;
+    letter-spacing: 1px;
+}
+
+#checkFilterAnswerStep2 {
+    left: 15px;
+    bottom: 20px;
+    margin: 10px;
+    font-weight: 600;
+    letter-spacing: 1px;
+}
+
+#skipQuestionFilterStep2 {
+    font-weight: 600;
+    letter-spacing: 1px;
+    padding: 2px;
+}
+
+.deleteFILTERAnnotation {
+    float: none !important;
+    font-size: 1.5rem;
+    opacity: .7;
+    max-height: 1rem;
+    position: relative;
+    top: 10px;
+}
+
+.deleteFILTERAnnotationIcon {
+    position: relative;
+    top: -8px !important;
+}
+
+#filter-instructions {
+    margin: auto;
+    margin-bottom: 9px;
+    padding: 4px;
+    background-color: #87ceeb70;
+    width: 100%;
+    border-radius: 10px;
+    font-size: small;
+    display: block;
+}
+
+#filter-alerts {
+    margin: auto;
+    /*margin-bottom: 9px;
+    padding: 4px;
+    background-color: #87ceeb70;*/
+    width: 91%;
+    /*border-radius: 10px;*/
+    font-size: small;
+}
+
+.alert {
+    position: relative;
+    padding: .45rem 0.9rem;
+    margin-bottom: 0.3rem;
+    border: 1px solid transparent;
+    border-radius: .5rem;
+}
+
+.alert-dismissible .close {
+    position: absolute;
+    top: 0;
+    right: 0;
+    padding: .3rem 1rem;
+    color: inherit;
+}
+
+
+#filter_step1_text {
+    flex: 1;
+    padding: 2pt;
+    border: 2px dashed lightgray;
+    width: fit-content;
+    border-radius: 10px;
+    height: 90%;
+    margin-bottom: 5px;
+}
+
+#filter_step1_content label:hover {
+    font-weight: bold;
+}
+
+#filter_step1_content input[type="radio"]:hover+label {
+    font-weight: bold;
+}
+
+#filter_step1_content input[type="radio"]:checked+label {
+    font-weight: bold;
+}

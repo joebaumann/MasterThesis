@@ -1,0 +1,437 @@
+<!-- extend base layout -->
+{% extends "admin_area/base.html" %} {% block content %}
+
+<head>
+    <script type="text/javascript">
+        $("document").ready(function() {
+
+            // make sure that focus is on text field as soon as modal is opened
+            $('#rejectAssignmentModal').on('shown.bs.modal', function() {
+                $('#rejectAssignmentModalInput').trigger('focus');
+            });
+
+            // make sure that focus is on text field as soon as modal is opened
+            $('#payBonusModal').on('shown.bs.modal', function() {
+                $('#payBonusModalInput').trigger('focus');
+            });
+
+            // deactivate all navbar links and then activate the link for the current page
+            $(".base-navbar-link").removeClass("active");
+            $("#navbar-mturk_requester_actions").addClass("active");
+
+            toggleEnvironmentButton();
+
+
+
+            $(function() {
+                $("#selectHIT").on("changed.bs.select", function(e, clickedIndex, newValue, oldValue) {
+                    window.selectedHIT_Text = $(this).find('option').eq(clickedIndex).text();
+                    window.selectedHIT_Id = $(this).find('option').eq(clickedIndex).attr("id");
+                    console.log('selectedHIT_Text: ' + selectedHIT_Text + ' // newValue: ' + newValue + ' // oldValue: ' + oldValue + ' // id: ' + selectedHIT_Id);
+                    console.log("selectedHIT_Id");
+                    console.log(selectedHIT_Id);
+
+                    requestAssignmentsDataFromServer();
+
+                });
+            });
+
+
+            $(document).on("click", ".approve-assignment-button", function() {
+                let buttonId = $(this).attr("id");
+                // click event of assignment button is nested in a document click event listener since these buttons are created dynamically
+                approveAssignment(buttonId);
+                //requestAssignmentsDataFromServer();
+            });
+
+            $(document).on("click", ".reject-assignment-button", function() {
+                // clear modal input text
+                $('#rejectAssignmentModalInput').val("");
+
+                window.reject_assignmentId = $(this).attr("id");
+                // click event of assignment button is nested in a document click event listener since these buttons are created dynamically
+                // reject this assignment
+            });
+
+            $(document).on("click", ".pay-bonus-button", function() {
+                // clear modal input text
+                $('#payBonusModalInput').val("");
+                $('#bonusAmount').val(0);
+
+                window.payBonus_assignmentId = $(this).attr("id");
+                window.payBonus_workerId = $(this).attr("value");
+                // click event of assignment button is nested in a document click event listener since these buttons are created dynamically
+                // pay the bonus
+            });
+
+
+            $("#modal-reject-assignment").click(function() {
+                let requester_feedback = $('#rejectAssignmentModalInput').val();
+                rejectAssignment(reject_assignmentId, requester_feedback);
+            });
+
+
+            $("#modal-pay-bonus").click(function() {
+                let requester_feedback = $('#payBonusModalInput').val();
+                let bonus_amount = $('#bonusAmount').val();
+                payBonus(payBonus_assignmentId, payBonus_workerId, requester_feedback, bonus_amount);
+            });
+
+        })
+
+        function toggleEnvironmentButton() {
+            // set the state of the environment button
+            // first enable both buttons
+            $(".environment-button").removeClass("selected").prop('disabled', false);
+            // and then disable selected button
+            $("#" + {{environment | tojson}}).addClass("selected").prop('disabled', true);
+
+        }
+
+        function requestAssignmentsDataFromServer() {
+            // reload page but this time send the selected hit_id to the server
+            if ({{environment|tojson}} == 'production') {
+                $.getJSON('{{ url_for('admin_area_bp.get_assignments', client_mturk_environment='production') }}', {'hit_id': selectedHIT_Id}, function(data) {
+                    loadAssignmentsTable(data, selectedHIT_Text, selectedHIT_Id);
+                })
+            } else {
+                $.getJSON('{{ url_for('admin_area_bp.get_assignments', client_mturk_environment='sandbox') }}', {'hit_id': selectedHIT_Id}, function(data) {
+                    loadAssignmentsTable(data, selectedHIT_Text, selectedHIT_Id);
+                })
+            }
+        }
+
+        function loadAssignmentsTable(assignments_data, selectedHIT_Text, selectedHIT_Id) {
+            console.log("assignments_data:");
+            console.log(assignments_data);
+            if (assignments_data == null) {
+                // hide table and table title
+                $("#table-title").addClass("hidden");
+                $("#assignments-table").addClass("hidden");
+
+            } else {
+                // hide table and title
+                $("#table-title").addClass("hidden");
+                $("#assignments-table").addClass("hidden");
+
+                // empty everything before setting new content
+                $("#table-title").empty();
+                $("#assignments-table tbody").empty();
+                $("#assignments-table caption").empty();
+                $("#hit-buttons").empty();
+
+                // set table title
+                $("#table-title").html("List of all assignments of HIT:<br>'<u><i><strong>" + selectedHIT_Text + "</strong></i></u>'");
+
+                // set table content
+                console.log("assignments_data:");
+                console.log(assignments_data);
+                console.log(typeof assignments_data);
+                console.log(assignments_data['Assignments']);
+                console.log(typeof assignments_data['Assignments']);
+
+                let numberOfAssignments = assignments_data['NumResults'];
+
+                // set table caption
+                $("#assignments-table caption").append("<samp>Number of Assignments: " + numberOfAssignments + "</samp>")
+
+                // get HIT info for selected hit
+                gitHITInfo(selectedHIT_Id);
+
+                for (var i = 0; i < numberOfAssignments; i++) {
+                    console.log("thats my assign:");
+                    console.log(assignments_data['Assignments'][i])
+                    console.log(typeof assignments_data['Assignments'][i])
+                    let numberOfKeValuePairs = Object.keys(assignments_data['Assignments'][i]).length;
+                    console.log("numberOfKeValuePairs:");
+                    console.log(numberOfKeValuePairs);
+
+                    var popover_content = ``
+
+                    Object.keys(assignments_data['Assignments'][i]).forEach((key, index) => {
+                        // loop through all existing relation_annotations to increment new key from currently highest
+                        console.log("key:");
+                        console.log(key);
+                        console.log("value:");
+                        console.log(assignments_data['Assignments'][i][key]);
+                        let value = assignments_data['Assignments'][i][key];
+                        if (key != 'Answer') {
+                            popover_content += "<li> " + key + " :<small> " + value + "</small></li>";
+                        } else {
+                            console.log("elseee");
+                        }
+                    })
+                    console.log("popover_content:");
+                    console.log(popover_content);
+
+
+                    //for (var j=0; j < assignments_data['NumResults']; j++) {}
+                    //<li> key : <small> value </small></li>
+
+                    $("#assignments-table tbody").append($("<tr>"));
+                    $("#assignments-table tbody").append($("<th scope='row'>" + (i+1) + "</tr>"));
+                    $("#assignments-table tbody").append($(`
+                    <td class="links">
+                        <a class="table-icon" tabindex="0"
+                            role="button" data-toggle="popover" data-trigger="manual"
+                            title="Detailed HIT information" data-html="true"
+                            data-content="<ul>` + popover_content + `</ul>"><svg
+                                width="1em" height="1em" viewBox="0 0 16 16" class="bi bi-search table-icon"
+                                fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                                <path fill-rule="evenodd"
+                                    d="M10.442 10.442a1 1 0 0 1 1.415 0l3.85 3.85a1 1 0 0 1-1.414 1.415l-3.85-3.85a1 1 0 0 1 0-1.415z" />
+                                <path fill-rule="evenodd"
+                                    d="M6.5 12a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11zM13 6.5a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0z" />
+                            </svg></a>
+                    </td>
+                    `));
+                    $("#assignments-table tbody").append($("<td>" + assignments_data['Assignments'][i]['AcceptTime'] + "</td>"));
+                    $("#assignments-table tbody").append($("<td>" + assignments_data['Assignments'][i]['ApprovalTime'] + "</td>"));
+                    $("#assignments-table tbody").append($("<td>" + assignments_data['Assignments'][i]['AssignmentStatus'] + "</td>"));
+                    $("#assignments-table tbody").append($("<td>" + assignments_data['Assignments'][i]['AutoApprovalTime'] + "</td>"));
+                    $("#assignments-table tbody").append($("<td>" + assignments_data['Assignments'][i]['SubmitTime'] + "</td>"));
+                    $("#assignments-table tbody").append($(`
+                    <td class="links">
+                        <a class="table-icon" tabindex="0"
+                            role="button" data-toggle="popover" data-trigger="manual"
+                            title="The worker's answer:" data-html="true"
+                            data-content="` + `this should be the worker's answer...` + `">
+                            <i class="fa fa-list-alt" aria-hidden="true"></i>
+                        </a>
+                    </td>
+                    `));
+                    getAssignmentButtons(assignments_data['Assignments'][i]);
+
+                    $("#assignments-table tbody").append($("</tr>"));
+
+                }
+
+
+
+                // unhide table and table title
+                $("#table-title").removeClass("hidden");
+                $("#assignments-table").removeClass("hidden");
+
+
+            }
+        }
+
+
+        function getAssignmentButtons(assignment) {
+
+            // disregarding the assignment status, add the pay bonus button
+            var payBonusButtonHTML = `<button id="` + assignment['AssignmentId'] + `" value="` + assignment['WorkerId'] + `"type="button" class="btn btn-info pay-bonus-button" data-toggle="modal" data-target="#payBonusModal">Pay Bonus</button>`
+            // then add approve button and add reject button only if assignment has not yet been approved
+            var approveAndRejectButtonsHTML = ``;
+            if (assignment['AssignmentStatus'] == 'Submitted') {
+                var approveAndRejectButtonsHTML = `
+                <button id="` + assignment['AssignmentId'] + `" type="button" class="btn btn-success approve-assignment-button">Approve</button>
+                <button id="` + assignment['AssignmentId'] + `" type="button" class="btn btn-danger reject-assignment-button" data-toggle="modal" data-target="#rejectAssignmentModal">Reject</button>`
+            } else if (assignment['AssignmentStatus'] == 'Rejected') {
+                // do not disable approve button if assignment has already been rejected, but maybe add a tooltip
+                var approveAndRejectButtonsHTML = `<button id="` + assignment['AssignmentId'] + `" type="button" class="btn btn-success approve-assignment-button" disabled>Approve</button>`
+            }
+
+            $("#assignments-table tbody").append($("<td class='assignmentButtons'>" + approveAndRejectButtonsHTML + payBonusButtonHTML + "</td>"));
+
+        }
+
+        function gitHITInfo(hit_id) {
+
+            console.log("");
+            console.log("first for loop");
+
+            {% for hit in hits %}
+            // loop through all hits
+            //console.log("{{ hit['HITId'] }}");
+
+            if ("{{ hit['HITId'] }}" == hit_id) {
+                console.log("yesss");
+                var hitInfoPopover = "<ul>";
+
+                {% for key, value in hit.items() %}
+                console.log("keyyyy:");
+                console.log("{{key}}");
+                if (!("{{key}}" == "Question")) {
+                    hitInfoPopover += `<li>{{ key }}: <small>{{ value }}</small></li>`;
+                }
+
+                {% endfor %}
+
+                hitInfoPopover += "</ul>"
+                console.log("hitInfoPopoverrrrr");
+                console.log(hitInfoPopover);
+
+            }
+            {% endfor %}
+
+            console.log("");
+
+
+            hitInfo = `<a class="table-icon" tabindex="0"
+                            role="button" data-toggle="popover" data-trigger="manual"
+                            title="Detailed HIT information" data-html="true"
+                            data-content="` + hitInfoPopover + `"><svg
+                                width="2em" height="2em" viewBox="0 0 16 16" class="bi bi-search table-icon"
+                                fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                                <path fill-rule="evenodd"
+                                    d="M10.442 10.442a1 1 0 0 1 1.415 0l3.85 3.85a1 1 0 0 1-1.414 1.415l-3.85-3.85a1 1 0 0 1 0-1.415z" />
+                                <path fill-rule="evenodd"
+                                    d="M6.5 12a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11zM13 6.5a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0z" />
+                            </svg>
+                        </a>`
+
+            $("#hit-buttons").append($(hitInfo));
+        }
+
+
+        function approveAssignment(assignment_id) {
+            // reload page but this time send the selected hit_id to the server
+            $.getJSON('{{ url_for('admin_area_bp.approve_assignment') }}', {'assignment_id': assignment_id,'client_mturk_environment': {{environment | tojson}}}, function(data) {
+                console.log("response:");
+                console.log(data);
+                requestAssignmentsDataFromServer();
+                console.log("doneeee:");
+            })
+
+        }
+
+        function rejectAssignment(assignment_id, requester_feedback) {
+            // reload page but this time send the selected hit_id to the server
+            $.getJSON('{{ url_for('admin_area_bp.reject_assignment') }}', {'assignment_id': assignment_id,'requester_feedback': requester_feedback,'client_mturk_environment': {{environment | tojson}}}, function(data) {
+                console.log("response:");
+                console.log(data);
+                requestAssignmentsDataFromServer();
+                console.log("doneeee:");
+            })
+
+        }
+
+        function payBonus(payBonus_assignmentId, payBonus_workerId, requester_feedback, bonus_amount) {
+            // reload page but this time send the selected hit_id to the server
+            $.getJSON('{{ url_for('admin_area_bp.pay_bonus') }}', {'assignment_id': payBonus_assignmentId, 'worker_id': payBonus_workerId, 'requester_feedback': requester_feedback, 'bonus_amount': bonus_amount, 'client_mturk_environment': {{environment | tojson}}}, function(data) {
+                console.log(data);
+                requestAssignmentsDataFromServer();
+            })
+
+        }
+    </script>
+</head>
+
+<body>
+
+    <div class="container">
+
+        <div class="row justify-content-center">
+            <button type="button" class="btn btn-warning environment-button" id="sandbox" onclick="window.location.href='{{ url_for('admin_area_bp.show_assignments', client_mturk_environment='sandbox') }}';">Sandbox</button>
+            <button type="button" class="btn btn-warning environment-button" id="production" onclick="window.location.href='{{ url_for('admin_area_bp.show_assignments', client_mturk_environment='production') }}';">Production</button>
+        </div>
+
+        <select name="selectHIT" id="selectHIT" class="selectpicker show-tick" data-live-search="true" title="Choose a HIT..." data-width="fit">
+            {% for hit in hits %}
+
+            <option id="{{ hit['HITId'] }}">{{ hit['Title'] }}</option>
+            {% endfor %}
+        </select>
+
+
+
+        <div class="row justify-content-center">
+
+            <h2 id="table-title" class="mt-4 text-white hidden"></h2>
+
+            <div id="hit-buttons" class="row justify-content-center" style="width: 100%;"></div>
+
+            <div class="row justify-content-center" style="width: 100%;">
+                <div class="col-auto" id="assignments-table-wrapper">
+                    <br>
+
+                    <table class="table table-responsive table-sm table-hover hidden" id="assignments-table">
+                        <caption></caption>
+                        <thead>
+                            <tr>
+                                <th scope="col">#</th>
+                                <th scope="col"></th>
+                                <th scope="col">AcceptTime</th>
+                                <th scope="col">ApprovalTime</th>
+                                <th scope="col">AssignmentStatus</th>
+                                <th scope="col">AutoApprovalTime</th>
+                                <th scope="col">SubmitTime</th>
+                                <th scope="col">Answer</th>
+                                <th scope="col"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+
+
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Modal to reject an assignment -->
+    <div class="modal fade" id="rejectAssignmentModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle" aria-hidden="true">
+        <div class="modal-dialog  modal-lg modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="rejectAssignmentModalTitle">Reject assignment:</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="rejectAssignmentForm">
+                        <div class="form-group">
+                            <label for="rejectAssignmentModalInput">Message to send to the worker:</label>
+                            <input id="rejectAssignmentModalInput" class="form-control" aria-describedby="rejectAssignmentModalInputHelp" type="text" placeholder="Please specify the feedback you want to give to the worker...">
+                            <small id="rejectAssignmentModalInputHelp" class="form-text text-muted">A message for the Worker, which the Worker can see in the Status section of the web site.</small>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Abort</button>
+                    <button id="modal-reject-assignment" type="button" class="btn btn-danger" data-dismiss="modal">Reject</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal to pay bonus to a worker -->
+    <div class="modal fade" id="payBonusModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle" aria-hidden="true">
+        <div class="modal-dialog  modal-lg modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="payBonusModalTitle">Pay Bonus:</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+
+                <form id="payBonusForm">
+                    <div class="form-group">
+                        <label for="payBonusModalInput">Message to send to the worker:</label>
+                        <input id="payBonusModalInput" class="form-control" type="text" aria-describedby="bonusInputHelp" placeholder="Please enter the message you want to send to the worker...">
+                        <small id="bonusInputHelp" class="form-text text-muted">A message that explains the reason for the bonus payment. The Worker receiving the bonus can see this message.</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="bonusAmount">Bonus in dollars:</label>
+                        <input name="bonusAmount" id='bonusAmount' aria-describedby="bonusAmountHelp" type="number" min="0.0" step="0.01" value="0"/>
+                        <small id="bonusAmountHelp" class="form-text text-muted">The Bonus amount is a US Dollar amount specified using a string (for example, "5" represents $5.00 USD and "101,42" represents $101.42 USD). Do not include currency symbols or currency codes.</small>
+                    </div>
+                </form>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Abort</button>
+                    <button id="modal-pay-bonus" type="button" class="btn btn-success" data-dismiss="modal">Pay Bonus</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+</body>
+
+{% endblock %}

@@ -1,0 +1,357 @@
+<!-- extend base layout -->
+{% extends "admin_area/base.html" %}
+
+{% block content %}
+
+<head>
+    <script type="text/javascript">
+        $("document").ready(function () {
+
+            toggleEnvironmentButton();
+
+            $('#batchSpecification').change(function(){
+                // fill options for paragraph select as soon as a batch has been selected
+                var selected_batch_name = $(this).val();
+                var selected_batch = {{batches|tojson}}[selected_batch_name];
+                $("#paragraphs").empty();
+
+                let paragraphs = {{paragraphs|tojson}}[selected_batch_name][selected_batch["textToAnnotate_filename"]];
+                let collator = new Intl.Collator(undefined, {numeric: true, sensitivity: 'base'});
+                let paragraphs_sorted = paragraphs.sort(collator.compare);
+
+                $.each(paragraphs_sorted, function (i, item) {
+                    $('#paragraphs').append($('<option>', { 
+                        value: item[0],
+                        text : item[0]
+                    }));
+                });
+                // refresh the selectpicker so that the newly added option(s) are displayed
+                $('#paragraphs').selectpicker('refresh');
+
+            });
+
+            $("#recalculateExpenses").click(function() {
+                // check if HIT is created based on HTML template or based on external URL
+                if ($("#HITQuestion-externalURL").hasClass("hidden") === true) {
+                    // HIT is created based on HTML template
+                    var rewardPerAssignment_rounded = parseFloat($('#rewardPerAssignment').val());
+                }
+                else {
+                    // HIT is created based on external URL
+                    let instructionTime = parseFloat($('#instructionTime').val());
+                    let finishSurveyTime = parseFloat($('#finishSurveyTime').val());
+                    let annotationTime200WordParagraph = parseFloat($('#annotationTime200WordParagraph').val());
+                    let rewardPerHour = parseFloat($('#rewardPerHour').val());
+                    
+                    var selected_batch_name = $('#batchSpecification').val();
+                    var selected_batch = {{batches|tojson}}[selected_batch_name];
+                    var paragraphs = {{paragraphs|tojson}}[selected_batch_name][selected_batch["textToAnnotate_filename"]];
+                    var allSelectedParagraphs = $('#paragraphs').val();
+
+                    
+                    var totalWordsToAnnotate = 0;
+                    $.each(paragraphs.sort(), function (i, item) {
+                        if (allSelectedParagraphs.includes(item[0])) {
+                            totalWordsToAnnotate += parseFloat(item[1]);
+                        }
+                    });
+
+                    let totalTimeNeeded = Math.round(instructionTime + finishSurveyTime + (annotationTime200WordParagraph * (totalWordsToAnnotate / 200)));
+                    
+                    let rewardPerAssignment = rewardPerHour / 60 * totalTimeNeeded;
+                    var rewardPerAssignment_rounded = Math.round((rewardPerAssignment + Number.EPSILON) * 100) / 100;
+
+                    $("#estimatedCompletionTime").val(totalTimeNeeded);
+                    $("#rewardPerAssignment").val(rewardPerAssignment_rounded);
+                }
+                
+                let mturk_fee = 0.2; // 20% fee
+                let masters_fee = 0.05; // 5% fee
+                let moreThan9Assignments_fee = 0.2; // 20% fee
+                var total_fee = mturk_fee;
+
+                let maxAssignments = parseFloat($('#maxAssignments').val());
+
+                if ($('input[name="masters"]:checked').val() === 'yes') {
+                    // if workers are required to be masters, add the masters fee
+                    total_fee = total_fee + masters_fee;
+                }
+                if (maxAssignments >= 10) {
+                    // if hit is created with 10 or more assignment, add the additional 20% fee
+                    total_fee = total_fee + moreThan9Assignments_fee;
+                }
+
+                // calculate the total HIT expenses and display it in the corresponding input field
+                var totalExpenses = maxAssignments * rewardPerAssignment_rounded * (1 + total_fee);
+                let totalExpenses_rounded = Math.round((totalExpenses + Number.EPSILON) * 100) / 100;
+                $("#totalExpenses").val(totalExpenses_rounded);
+            });
+
+
+            $('input[type=radio][name=questionType]').change(function() {
+                if (this.value == 'htmlTemplate') {
+                    // show those form inputs which are relevant for creating a hit based on a html template
+                    $("#HITQuestion-htmltemplate").removeClass("hidden");
+                    $("#HITQuestion-externalURL").addClass("hidden");
+                    $("button#recalculateExpenses").html("Recalculate Total HIT Expenses");
+                }
+                else if (this.value == 'externalURL') {
+                    // show those form inputs which are relevant for creating a hit based on an external URL
+                    $("#HITQuestion-htmltemplate").addClass("hidden");
+                    $("#HITQuestion-externalURL").removeClass("hidden");
+                    $("button#recalculateExpenses").html("Recalculate Reward and Total HIT Expenses");
+                }
+            });
+            
+            
+        })
+
+        function toggleEnvironmentButton() {
+            // set the state of the environment button
+            // first enable both buttons
+            $(".environment-button").removeClass("selected").prop('disabled', false);
+            // and then disable selected button
+            $("#" + {{environment | tojson}}).addClass("selected").prop('disabled', true);
+
+            $("#create-hit-button").attr("value", "Create HIT in {{environment}}")
+            
+
+
+        }
+
+    </script>
+</head>
+
+<body>
+    <div class="container" style="text-align: left;">
+        <div class="row">
+            <button type="button" class="btn btn-warning environment-button" id="sandbox" onclick="window.location.href='{{ url_for('admin_area_bp.create_hit_form', client_mturk_environment='sandbox') }}';">Sandbox</button>
+            <button type="button" class="btn btn-warning environment-button" id="production" onclick="window.location.href='{{ url_for('admin_area_bp.create_hit_form', client_mturk_environment='production') }}';">Production</button>
+        </div>
+
+        <div class="row" style="margin-top: 3%;">
+        
+            {% with errors = get_flashed_messages(category_filter=["error"]) %}
+                {% if errors %}
+                    {%- for msg in errors %}
+                    <div class="alert alert-danger" role="alert">{{msg}}</div>
+                    {% endfor -%}
+                {% endif %}
+            {% endwith %}
+    
+            {% with infos = get_flashed_messages(category_filter=["info"]) %}
+                {% if infos %}
+                    {%- for msg in infos %}
+                    <div class="alert alert-warning" role="alert">{{msg}}</div>
+                    {% endfor -%}
+                {% endif %}
+            {% endwith %}
+    
+            {% with success = get_flashed_messages(category_filter=["success"]) %}
+                {% if success %}    
+                    {%- for msg in success %}
+                    <div class="alert alert-success" role="alert">{{msg}}</div>
+                    {% endfor -%}
+                {% endif %}
+            {% endwith %}
+        
+        </div>
+
+
+        <div class="row">
+            
+            <form action="{{ url_for('admin_area_bp.create_mturk_hit') }}" method="post">
+                <ul style="display:block;float:center;color:white;" id='create-hit-input-list'>
+                    <input name='environment' value='{{environment}}' class="hidden" />
+                    <li>HIT Title:</li>
+                    <input name="title" id='title' type="text"  />
+                    <br>
+                    <li>HIT Description:</li>
+                    <input name="description" id='description' type="text" value="After going through the detailed instructions, you will read 3 paragraphs of a scientific paper. In each paragraph you have to annotate different types of arguments." />
+                    <br>
+                    <li>HIT Keywords:</li>
+                    <input name="keywords" id='keywords' type="text" value="Arguments,Annotation,Scientific,Papers,Research" />
+                    <br>
+                    <li>Maximum experiment duration (in minutes):</li>
+                    <input name="timeout" id='timeout' type="number" min="0" step="1" value='120'  />
+                    <br>
+                    <li>Maximum amount of assignments:</li>
+                    <input name="maxAssignments" id='maxAssignments' type="number" min="0" step="1" value="1"/>
+                    <br>
+                    <li>Duration of HIT (in days):</li>
+                    <input name="duration" id='duration' type="number" min="0" step="1" value="2"  />
+                    <br>
+                    <br>
+                    
+                    
+                    <li>Create new Qualification for all workers who will participate in this HIT:</li>
+
+                    <div class="custom-control custom-radio">
+                        <input name="createNewQualificationType" id='createNewQualificationType-yes' type="radio" class="custom-control-input" value='yes'/>
+                        <label class="custom-control-label" for="createNewQualificationType-yes">Yes</label>
+                    </div>
+                    
+                    <div class="custom-control custom-radio">
+                        <input name="createNewQualificationType" id='createNewQualificationType-no' type="radio" class="custom-control-input" value='no' checked/>
+                        <label class="custom-control-label" for="createNewQualificationType-no">No</label>
+                    </div>
+                        
+                    <br>
+
+                    <li>Require workers to be Masters:</li>
+
+
+                    <div class="custom-control custom-radio">
+                        <input name="masters" id='masters-yes' type="radio" class="custom-control-input" value='yes' />
+                        <label class="custom-control-label" for="masters-yes">Must be Masters</label>
+                    </div>
+
+                    <div class="custom-control custom-radio">
+                        <input name="masters" id='masters-no' type="radio" class="custom-control-input" value='no' />
+                        <label class="custom-control-label" for="masters-no">Must NOT be Masters</label>
+                    </div>
+                    
+                    <div class="custom-control custom-radio">
+                        <input name="masters" id='masters-undecided' type="radio" class="custom-control-input" value='undecided' checked/>
+                        <label class="custom-control-label" for="masters-undecided" aria-describedby="masterHelp">No requirements</label>
+                    </div>
+
+                    <small id="masterHelp" class="form-text">Masters are Workers who have demonstrated superior performance while completing thousands of HITs across the Mechanical Turk marketplace. Masters maintain this high level of performance to keep this distinction.</small>
+
+
+                    <br>
+                    
+                    <li>Require workers' location to be US:</li>
+                    <div class="custom-control custom-radio">
+                        <input name="location" id='location-yes' type="radio" class="custom-control-input" value='yes'/>
+                        <label class="custom-control-label" for="location-yes">Yes</label>
+                    </div>
+                    <div class="custom-control custom-radio">
+                        <input name="location" id='location-no' type="radio" class="custom-control-input" value='no' checked/>
+                        <label class="custom-control-label" for="location-no" aria-describedby="locationHelp">No</label>
+                    </div>
+                    <small id="locationHelp" class="form-text">The location of the Worker, as specified in the Worker's mailing address.</small>
+
+                    <br>
+
+                    <li> Total number of lifetime HITs approved:</li>
+                    <input name="approved" id='approved' aria-describedby="approvedHelp" type="number"  min=0 />
+                    <small id="approvedHelp" class="form-text">Specifies the total number of HITs submitted by a Worker that have been approved. The value is an integer greater than or equal to 0.</small>
+                    
+                    <br>
+                    
+                    <li> Percentage of total lifetime HITs approved:</li>
+                    <input name="percentAssignmentsApproved" id='percentAssignmentsApproved' aria-describedby="percentAssignmentsApprovedHelp" type="number"  min=0 max=100 />
+                    <small id="percentAssignmentsApprovedHelp" class="form-text">The percentage of assignments the Worker has submitted that were subsequently approved by the Requester, over all assignments the Worker has submitted. The value is an integer between 0 and 100.</small>
+
+                    <br>
+
+                    <li><b>Create HIT from HTML template or based on external URL:</b></li>
+
+                    <div class="custom-control custom-radio">
+                        <input name="questionType" id='questionType-htmlTemplate' type="radio" class="custom-control-input" value='htmlTemplate'/>
+                        <label class="custom-control-label" for="questionType-htmlTemplate">HTML Template</label>
+                    </div>
+                    
+                    <div class="custom-control custom-radio">
+                        <input name="questionType" id='questionType-externalURL' type="radio" class="custom-control-input" value='externalURL' checked/>
+                        <label class="custom-control-label" for="questionType-externalURL">external URL</label>
+                    </div>
+                    
+                    <br>
+
+                    <div id="HITQuestion-htmltemplate" class="hidden">
+                    
+
+                        <li>Choose the html template for this HIT</li>
+                        <select name='htmlTemplateFilename' id='htmlTemplateFilename' class="selectpicker show-tick" data-live-search="true" title="-- select html template --" data-width="fit">
+                            {% for template in html_templates %}
+                            <option value = '{{ template }}'>{{ template }}</option>
+                            {% endfor %}
+                        </select>
+                        
+                        <br>
+                    
+                    </div>
+
+
+                    <div id="HITQuestion-externalURL">
+
+
+
+                        <li>Choose the batch specification for this HIT</li>
+                        <select name='batchSpecification' id='batchSpecification' class="selectpicker show-tick" data-live-search="true" title="-- select batch config --" data-width="fit">
+                            {% for batch in batches.keys() %}
+                            <option value = '{{ batch }}'>{{ batch }}</option>
+                            {% endfor %}
+                        </select>
+                        
+                        <br>
+                        <li>Choose the paragraphs which should be included in this HIT</li>
+                        <select name='paragraphs' id='paragraphs' class="selectpicker show-tick" data-live-search="true" title="-- select batch, then select paragraph(s) --" data-width="fit" multiple data-selected-text-format="count > 5">
+
+                        </select>
+
+                        <br>
+                        <li>Time needed to read instructions (in minutes):</li>
+                        <input name="instructionTime" id='instructionTime' type="number" min="0.0" step="0.1" value="10" />
+                        <br>
+                        <li>Time needed to fill out the finish survey (in minutes):</li>
+                        <input name="finishSurveyTime" id='finishSurveyTime' type="number" min="0.0" step="0.1" value="5" />
+                        <br>
+                        <li>Time needed to annotate a 200-word-paragraph (in minutes):</li>
+                        <input name="annotationTime200WordParagraph" id='annotationTime200WordParagraph' type="number" min="0.0" step="0.1" value="6" />
+                        <br>
+                        <li>Pay / hour (in dollars):</li>
+                        <input name="rewardPerHour" id='rewardPerHour' type="number" min="0.0" step="0.01" value="12" />
+                        <br>
+                        <li><strong>Estimated time to complete HIT (in minutes):</strong></li>
+                        <input name="estimatedCompletionTime" id='estimatedCompletionTime' type="number" min="0.0" step="0.01" />
+                        <br>
+                        <br>
+                    
+                    </div>
+
+                    <li><strong>Reward / assignment (in dollars):</strong></li>
+                    <input name="rewardPerAssignment" id='rewardPerAssignment' type="number" min="0.0" step="0.01" />
+                    <li><strong>Total HIT Expenses (in dollars):</strong></li>
+                    <input name="totalExpenses" id='totalExpenses' type="number" min="0.0" step="0.01" />
+                    <button id="recalculateExpenses" aria-describedby="recalculateExpensesHelp" type="button" class="btn btn-light" style="margin: 4px;">Recalculate Reward and Total HIT Expenses</button>
+                    <small id="recalculateExpensesHelp" class="form-text">The calculation of the Total HIT Expenses includes the 20% MTurk fee and the 5% fee given that master-workers are required.</small>
+                    
+                    <br>
+                    <br>
+
+                    <li>Groups excluded:</li>
+                    <select name='excluded' id='excluded' class="selectpicker show-tick" data-live-search="true" title="-- select Qualification(s) --" data-width="fit" aria-describedby="excludedHelp" multiple data-selected-text-format="count > 5">
+                        {% for qual in qualifications %}
+                        <option value = '{{ qual["QualificationTypeId"] }}' id='{{ qual["QualificationTypeId"] }}'>'{{ qual['Name'] }}' [{{ qual['number_of_associated_workers'] }} associated workers]</option>
+                        {% endfor %}
+                    </select>
+                    <small id="excludedHelp" class="form-text">Workers who are associated with any of the selected qualifications are not able to discover, preview or accept this HIT.</small>
+                    <br>
+                    <li>Groups included:</li>
+                    <select name='included' id='included' class="selectpicker show-tick" data-live-search="true" title="-- select Qualification(s) --" data-width="fit" aria-describedby="includedHelp" multiple data-selected-text-format="count > 5">
+                        {% for qual in qualifications %}
+                            <option value = '{{ qual["QualificationTypeId"] }}' id='{{ qual["QualificationTypeId"] }}'>'{{ qual['Name'] }}' [{{ qual['number_of_associated_workers'] }} associated workers]</option>
+                        {% endfor %}
+                    </select>
+                    <small id="includedHelp" class="form-text">Only workers who are associated with all of the selected qualifications are able to discover, preview and accept this HIT.</small>
+                    
+                    <br>
+                    <br>
+                    <input type="submit" id="create-hit-button" class="btn btn-success btn-lg" value="Create HIT"></input>
+                </ul>
+            </form>
+
+
+
+        </div>
+        
+    </div>
+
+
+
+</body>
+
+{% endblock %}

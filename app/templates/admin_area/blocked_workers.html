@@ -1,0 +1,163 @@
+<!-- extend base layout -->
+{% extends "admin_area/base.html" %}
+
+{% block content %}
+<head>
+    <script type="text/javascript">
+        $("document").ready(function () {
+
+            toggleEnvironmentButton();
+        })
+
+
+        function toggleEnvironmentButton() {
+            // set the state of the environment button
+            console.log("environment:");
+            console.log({{environment|tojson}});
+            // first enable both buttons
+            $(".environment-button").removeClass("selected").prop('disabled', false);
+            // and then disable selected button
+            $("#" + {{environment|tojson}}).addClass("selected").prop('disabled', true);
+
+        }
+    </script>
+</head>
+<body>
+
+    <div class="container">
+
+        <div class="row justify-content-md-center">
+            <button type="button" class="btn btn-warning environment-button" id="sandbox"
+                onclick="window.location.href='{{ url_for('admin_area_bp.show_blocked_workers', client_mturk_environment='sandbox') }}';">Sandbox</button>
+            <button type="button" class="btn btn-warning environment-button" id="production"
+                onclick="window.location.href='{{ url_for('admin_area_bp.show_blocked_workers', client_mturk_environment='production') }}';">Production</button>
+        </div>
+
+        <div class="row justify-content-center">
+        
+            {% with errors = get_flashed_messages(category_filter=["error"]) %}
+                {% if errors %}
+                    {%- for msg in errors %}
+                    <div class="alert alert-danger" role="alert">{{msg}}</div>
+                    {% endfor -%}
+                {% endif %}
+            {% endwith %}
+    
+            {% with infos = get_flashed_messages(category_filter=["info"]) %}
+                {% if infos %}
+                    {%- for msg in infos %}
+                    <div class="alert alert-warning" role="alert">{{msg}}</div>
+                    {% endfor -%}
+                {% endif %}
+            {% endwith %}
+    
+            {% with success = get_flashed_messages(category_filter=["success"]) %}
+                {% if success %}    
+                    {%- for msg in success %}
+                    <div class="alert alert-success" role="alert">{{msg}}</div>
+                    {% endfor -%}
+                {% endif %}
+            {% endwith %}
+        
+        </div>
+
+        <div class="row justify-content-md-center" style="margin-top: -2%;">
+            <div id="blockWorker">
+                <h2 class="mt-4 text-white">Block Worker:</h2>
+                
+                <div class="row">
+            
+                    <form class="needs-validation" action="{{ url_for('admin_area_bp.block_worker') }}" method="post">
+                        <input name='environment' value='{{environment}}' class="hidden" />
+                        <label class="mt-4 text-white required" for="workerid">Worker ID:</label>
+                        <input name="workerid" id='workerid' placeholder="Worker ID" type="text" required/>
+                        &nbsp;
+                        <label class="mt-4 text-white">Reason:</label>
+                        <input name="reason" id='reason' type="text" placeholder="Block reason" />
+                        
+                        &nbsp;&nbsp;&nbsp;
+
+                        <input type="submit" class="btn btn-danger" value="Block Worker"></input>
+                        
+                        <br/>
+                        
+                    </form>
+        
+                </div>
+
+            </div>
+
+
+            <div id="deleteBlock">
+                <h2 class="mt-4 text-white">Delete Worker Block:</h2>
+                
+                <div class="row">
+            
+                    <form class="needs-validation" action="{{ url_for('admin_area_bp.delete_worker_block') }}" method="post">
+                        <input name='environment' value='{{environment}}' class="hidden" />
+                        <label class="mt-4 text-white required" for="workerid">Worker ID:</label>
+                        <input type="text" name="workerid" id='workerid' placeholder="Worker ID" required/>
+                        &nbsp;
+                        <label class="mt-4 text-white" for="reason">Reason:</label>
+                        <input name="reason" id='reason' type="text" placeholder="Unblock reason" />
+                        
+                        &nbsp;&nbsp;&nbsp;
+
+                        <input type="submit" class="btn btn-warning" value="Delete Block"></input>
+                        
+                        <br/>
+                        
+                    </form>
+        
+                </div>
+
+            </div>
+
+
+            <div id="blockedWorkerList">
+                <h2 class="mt-4 text-white">All blocked Workers:</h2>
+                <p class="lead"><samp>Currently, the following <mark>{{ number_of_blocked_workers }}</mark> workers are blocked in the Amazon Mechanical Turk <mark>{{ environment }}</mark>environment:</samp></p>
+
+
+
+
+            <div class="row justify-content-center" style="width: 100%;">
+                <div class="col-auto" id="hits-table-wrapper">
+                <br>
+
+                    <table class="table table-responsive table-sm table-hover" id="hits-table">
+                        <caption><samp>Nr. of blocked workers: {{number_of_blocked_workers}}</samp></caption>
+                        <thead>
+                            <tr>
+                                <th scope="col">#</th>
+                                <th scope="col">Worker ID</th>
+                                <th scope="col">Reason</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for worker in blocked_workers %}
+                            <tr>
+                                <th scope="row">{{ blocked_workers|length - loop.index + 1 }}</th>
+                                
+                                <td>{{ worker['WorkerId'] }}</td>
+                                <td><i>{{ worker['Reason'] }}</i></td>
+
+                            </tr>
+                            {% endfor %}
+
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+
+
+            </div>
+        </div>
+
+
+    </div>
+</body>
+
+
+{% endblock %}

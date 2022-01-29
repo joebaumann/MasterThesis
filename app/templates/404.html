@@ -1,0 +1,14 @@
+<!-- extend base layout -->
+{% extends "base.html" %}
+
+{% block content %}
+    <h1>Page Not Found</h1>
+    <p>
+        Dear worker, an unexpected error has occurred. Please refresh the page with the button below.
+    </p>
+    <p>
+        Should this not resolve the problem, please write an e-mail to the <a href= "mailto:joachim.baumann@uzh.ch">HIT Requester</a>.
+    </p>
+    <button type="button" class="btn btn-info" onClick="window.location.href=window.location.href">Refresh Page</button>
+
+{% endblock %}

@@ -1,0 +1,86 @@
+<!-- extend base layout -->
+{% extends "admin_area/base.html" %}
+
+{% block content %}
+
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AWS Login</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.8.0/css/bulma.min.css">
+  <script defer src="https://use.fontawesome.com/releases/v5.3.1/js/all.js"></script>
+</head>
+
+<body>
+  <div class="hero-body">
+  <h1 class="font-weight-light mt-4 text-white" style="padding: 10px; font-size: xx-large; margin-bottom: 2%; font-weight: 600 !important;">AWS Login Page</h1>
+  <div class="container text-center">
+  <div class="row justify-content-center">
+    {% with errors = get_flashed_messages(category_filter=["error"]) %}
+    {% if errors %}
+      {%- for msg in errors %}
+      <div class="alert alert-danger" role="alert">{{msg}}</div>
+      {% endfor -%}
+    {% endif %}
+    {% endwith %}
+
+    {% with infos = get_flashed_messages(category_filter=["info"]) %}
+    {% if infos %}
+      {%- for msg in infos %}
+      <div class="alert alert-warning" role="alert">{{msg}}</div>
+      {% endfor -%}
+    {% endif %}
+    {% endwith %}
+
+    {% with success = get_flashed_messages(category_filter=["success"]) %}
+    {% if success %}    
+      {%- for msg in success %}
+      <div class="alert alert-success" role="alert">{{msg}}</div>
+      {% endfor -%}
+    {% endif %}
+    {% endwith %}
+  </div>
+  <div class="row justify-content-center">
+    <div class="container">
+        <div class="columns is-centered">
+          <div class="column is-half">
+            <form method="POST">
+              <div class="field">
+                <label class="label">AWS Access Key ID</label>
+                <div class="control has-icons-left has-icons-right">
+                  <input class="input" type="text" name="AWS_ACCESS_KEY" placeholder="AWS Access Key ID">
+                  <span class="icon is-small is-left">
+                    <i class="fas fa-user"></i>
+                  </span>
+                </div>
+              </div>
+              <div class="field">
+                <label class="label">AWS Secret Access Key</label>
+                <p class="control has-icons-left">
+                  <input class="input" type="password" name="AWS_SECRET_ACCESS_KEY" placeholder="AWS Secret Access Key">
+                  <span class="icon is-small is-left">
+                    <i class="fas fa-lock"></i>
+                  </span>
+                </p>
+              </div>
+              
+              <input name="environment" id='environment-sandbox' type="radio" value='sandbox' checked/><span class="font-weight-bolder mt-4" style="color: #363636;"> Sandbox</span>
+              &nbsp;&nbsp;&nbsp;
+              <input style="color: white;" name="environment" id='environment-no' type="radio" value='production' /><span class="font-weight-bolder mt-4" style="color: #363636;"> Production</span>
+              
+              <div class="field">
+                <p class="control">
+                  <button type="submit" class="button is-success">
+                    Login to AWS
+                  </button>
+                </p>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+  </div>
+  </div>
+  </div>
+</body>
+
+{% endblock %}

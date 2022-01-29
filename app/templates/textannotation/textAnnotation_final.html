@@ -1,0 +1,2644 @@
+<!DOCTYPE html>
+<html style="border: 3px solid #5399b4;">
+
+<head>
+  <title>Crowd-powered argument annotation</title>
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <!-- Include bootstrap, jQuery, Popper -->
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <!-- <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script> -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js"></script>
+
+  <script src="https://kit.fontawesome.com/172b48191c.js" crossorigin="anonymous"></script>
+
+  <link rel="stylesheet" type= "text/css" href= "{{ url_for('static',filename='styles/textannotation.css') }}">
+
+  <script type="text/javascript">
+    
+    $("document").ready(function() {
+      $(document).ready(function(){
+        // enable tooltips
+        $('.tooltip-wrapper').tooltip({position: "bottom"});
+        // enable popovers
+        $('[data-toggle="popover"]').popover()
+      });
+
+      // set mturk form action so that when worker submits the hit the results data is sent to the correct mturk url
+      $("#mturk_form").attr("action", {{turkSubmitTo|tojson}});
+
+
+      loadAllLocalStorageElements();
+
+
+      logger = logger.concat(Date.now(), "/Page loaded. Preview_mode=", {{ preview_mode }}, "//");
+
+      if (window.informedConsentCheckBox == true) {
+        $('#informedConsentCheckBox').prop('checked', true);
+      }
+      else {
+        $('#informedConsentCheckBox').prop('checked', false);
+      }
+
+      window.annotation_types = {{annotation_types|tojson}};
+
+
+      // set the worker's assignment id so that mturk can process it as soon as worker submits the assignment
+      $("#assignmentId").val({{worker_assignment_data|tojson}}.assignment_id);
+
+      displayAllAnnotationTypeButtons(annotation_types);
+      window.currentSelectionToBeAnnotated = {valid: false, start_id: -1, end_id: -1};
+      window.pressedAnnotationButton = "";
+
+      
+      // set name and value of li element to name/value of child radio button. This makes it possible to check radio button if worker clicks on description
+      $( "#certaintyRadioButtons input" ).each(function( index ) {
+        let radio_value = $(this).attr("value");
+        $(this).parent().attr("value", radio_value);
+      });
+
+
+      // load already checked answers as sent by server
+      loadFeedback();
+
+      // check if this worker already passed the ability filter
+      var worker_id = {{worker_assignment_data|tojson}}.worker_id;
+
+      if (!({{worker_IDs_who_passed_step2|tojson}}.indexOf(worker_id) < 0)) {
+        // this worker already passed the filter
+        // set filter to passed to make sure that worker can directly start with annotation
+        window.filterData_step2.filterPassed = true;
+        // remove pop quiz info box from instructions
+        $("#importantInstructionInfoPopQuiz").addClass("hidden");
+      }
+      
+
+      if (isTotalNumberOfWrongAttemptsReached()) {
+        // the worker already did too many attempts, therefore filter (Step 2) is failed!
+        // hide previous button
+        $("#previousPageButton-feedback").addClass("hidden");
+        jumpToPage(getNumberOfFinishPage());
+      }
+      else {
+        // the worker did not use too many attempts, therefore go to page were the worker was last
+        jumpToPage(window.paragraphNumber);
+      }
+
+
+      $('#mturk_form').submit(function(event) {
+        event.preventDefault(); // this prevents the default submit
+        logger = logger.concat(Date.now(), "/Submit", "//");
+        updateMTurkForm();
+
+        // print data on heroku for safety reasons
+        printDataOnServer("SUBMIT COMPONENT");
+        
+
+        // clear all worker data in local storage when worker submits HIT
+        // loop through all elements of local storage to delete the ones which were created during this assignment.
+        // Further, check if any local storage elements are found which are older than one week. If yes, extract the assignment id of the outdated element and delete all local storage elements which contain this id.
+        // By that we make sure that a worker's local storage is kept clean and that the maximum size of a worker's local storage is not exceeded.
+        // This is needed since localstorage elements are initiated on page load (also in preview mode).
+        var locstor_keys = Object.keys(window.localStorage);
+        var assignment_id = {{worker_assignment_data|tojson}}.assignment_id;
+        $.each(locstor_keys, function(index, key) {
+          if (key.includes(assignment_id)) {
+            // The key of this element contains this assignment's id, therefore delete it.
+            window.localStorage.removeItem(key);
+          }
+          else if (key.includes("timestamp")) {
+            // this element was created during another assignment
+            // check whether the timestamp is more than one week old
+            let assignment_timestamp = parseInt(window.localStorage.getItem(key));
+            let time_since_creation_in_days = Math.abs(assignment_timestamp - Date.now()) / 1000 / 60 / 60 / 24;
+            
+            if (time_since_creation_in_days > 7) {
+              // Local storage element is outdated!
+              // This assignment was done more than one week ago. Loop again through all elements of local storage to delete the ones which were created during this assignment.
+              var assignment_id_of_expired_assignment = key.replace("timestamp", "");
+              var locstor_keys_new = Object.keys(window.localStorage);
+              $.each(locstor_keys_new, function(index_expired, key_expired) {
+                if (key_expired.includes(assignment_id_of_expired_assignment)) {
+                  // The key of this element contains the id of the expired assignment, therefore delete it.
+                  window.localStorage.removeItem(key_expired);
+                }
+              })
+            }
+
+          }
+        })
+
+        // submit assignment and send data to mturk
+        $(this).unbind('submit').submit(); // continue with the submit
+      })
+
+    });
+
+    function printDataOnServer(message) {
+      // get timestamp
+      var currentTimeInMs = Date.now();
+
+      var submit_DATA = {'message': message, 'timestamp': currentTimeInMs, 'annotations': JSON.stringify(window.annotations), 'filterData_step2': JSON.stringify(window.filterData_step2), 'worker_assignment_data': JSON.stringify({{worker_assignment_data|tojson}}), 'feedback': $("textarea[name='feedback']").val(), 'logger': window.logger};
+
+      $.getJSON('{{url_for('textannotation_bp.submit_data')}}', submit_DATA, function(data) {
+        //console.log("data was successfully sent to the server");
+        console.log(data);
+      })
+    }
+
+    function submit_data_wrongfilter2answer() {
+
+      var submit_DATA = {'worker_assignment_data': JSON.stringify({{worker_assignment_data|tojson}}), 'current_filter_step': current_filter_question_id, 'nr_of_tries': getThisQuestionsNrOfWrongAttempts(), 'last_tried_annotation': JSON.stringify(window.filterData_step2.currentAnnotation)};
+
+      $.getJSON('{{url_for('textannotation_bp.submit_data_wrongfilter2answer')}}', submit_DATA, function(data) {
+        //console.log("data was successfully sent to the server");
+        console.log(data);
+      })
+    }
+
+    function displayTextToAnnotate(paragraph, annotations) {
+      var textToAnnotateDIV = $('#textToAnnotate');
+      textToAnnotateDIV.empty();
+
+      let text_to_annotate = ({{text_to_annotate|tojson}})[paragraph];
+      
+      $.each(text_to_annotate, function(id, token_dict) {
+        textToAnnotateDIV.append($('<span id=' + id + '>' + token_dict.token + ' </span>'));
+      });
+
+      annotateTextAll(annotations, paragraph);
+
+    };
+
+    function displayTextToAnnotateFILTERSTEP2() {
+      var textToAnnotateDIV = $('#textToAnnotate');
+      textToAnnotateDIV.empty();
+
+      var filterInstructionsDIV = $('#filter-instructions');
+      filterInstructionsDIV.empty();
+
+      let filter_questions_step2 = ({{filter_questions_step2|tojson}});
+
+      let all_filter_parts = Object.keys(filter_questions_step2);
+      let all_not_passed_filter_parts = all_filter_parts.filter(function (id) {
+        return window.filterData_step2.passed_parts.indexOf(id) < 0;
+      });
+      
+      // define the current_filter_question_id as the first filter part which is not passed yet
+      window.current_filter_question_id = all_not_passed_filter_parts[0];
+
+      var filter_instructions = filter_questions_step2[current_filter_question_id]['instructions'];
+      var filter_text_to_annotate = filter_questions_step2[current_filter_question_id]['text_to_annotate'];
+
+      filterInstructionsDIV.append(filter_instructions);
+      
+      $.each(filter_text_to_annotate, function(id, token_dict) {
+        textToAnnotateDIV.append($('<span id=' + id + '>' + token_dict.token + ' </span>'));
+      });
+
+    };
+    
+    function getForbiddenTokens() {
+      var forbiddenTokens = {{forbidden_tokens|tojson}};
+      return forbiddenTokens
+    };
+
+    function isForbiddenToken(tokenToBeChecked) {
+      // check if a token is in the array of the forbidden tokens which was passed by the flask app
+      var forbiddenTokens = getForbiddenTokens();
+      var tokenToBeChecked_trimmed = tokenToBeChecked.replace(/ +/g, "");
+      for (var i = 0; i < forbiddenTokens.length; i++) {
+        if ((tokenToBeChecked == forbiddenTokens[i]) || (tokenToBeChecked_trimmed == forbiddenTokens[i])) {
+          //return true if token is forbidden
+          return true;
+        }
+      }
+      return false;
+    };
+
+    function annotateTextAll(annotations, paragraph) {
+      if ((paragraph in annotations) && (annotations[paragraph] != null)) {
+        
+        for (var i = 0; i < annotations[paragraph].length; i++) {
+
+          let start = annotations[paragraph][i][0];
+          let end = annotations[paragraph][i][1];
+          var annotation = annotations[paragraph][i][2];
+          for (var j = parseFloat(start); j <= parseFloat(end); j++){
+            if (j == parseFloat(start)) {
+              addTokenAnnotation(j, annotation, "firstToken")
+            }
+            if (j == parseFloat(end)) {
+              addTokenAnnotation(j, annotation, "lastToken")
+            }
+            if ((j > parseFloat(start)) | (j < parseFloat(end))) {
+              addTokenAnnotation(j, annotation, false);
+            }
+          }
+          addAnnotationName(end, annotation);
+        }
+      }
+    };
+
+    function displayAllAnnotationTypeButtons(annotation_types) {
+      var numberOfAnnotationTypes = annotation_types.length;
+      for (var i = 0; i < numberOfAnnotationTypes; i++) {
+        // create css classes and html element on the fly for each button
+        
+        let className = annotation_types[i][0];
+        let displayName = annotation_types[i][1];
+        let color = annotation_types[i][2];
+        
+        
+        $("<style type='text/css'> ." + className + " {\
+          background-color: " + color + " !important;\
+          color: white;\
+          }</style>").appendTo("head");
+
+        if (i == 0) {
+          var marginLeft = "0px";
+        }
+        else {
+          var marginLeft = "15px";
+        }
+
+        $("<style type='text/css'> #annotationButtons #" + className + " {\
+          border: 3px solid " + color + ";\
+          color: white;\
+          padding: 2px;\
+          margin-left: " + marginLeft + ";\
+          background-color: " + color + ";\
+          border-top-right-radius: 0px;\
+          border-bottom-right-radius: 0px;\
+          }</style>").appendTo("head");
+
+        $("<style type='text/css'> #annotationButtons #" + className + ":hover:enabled {\
+          border: 3px solid white;\
+          }</style>").appendTo("head");
+
+        $("<style type='text/css'> .annotationName-" + className + " {\
+          font-style: italic;\
+          font-size: small;\
+          border-bottom: 3px solid " + color + ";\
+          margin-right: 2px;\
+          } </style>").appendTo("head");
+
+        $('#annotationButtons').append($('\
+          <button class="btn btn-basic ' + className + '" id="' + className + '" disabled>'+ displayName + '</button>\
+          '));
+      }
+    };
+
+    function addTokenAnnotation(tokenId, annotation, styleClass) {
+      $("#"+tokenId).addClass(annotation);
+      if (!(styleClass === false)) {
+        $("#"+tokenId).addClass(styleClass);
+      }
+    };
+
+    function addAnnotationName(tokenId_before, annotation) {
+      
+      let displayName = (window.annotation_types.find(type => type[0] == annotation)[1]);
+
+      if (window.filterData_step2.filterPassed === true) {
+        // filter (Step 2) has been passed, therefore create annotationName with edit button
+        var annotationNameSpan_html ='<span class="annotationName annotationName-' + annotation + '" id=' + (tokenId_before+0.5) + '> ' + displayName + ' <button type="button" class="close editAnnotation" aria-label="Close"><span id=' + (tokenId_before+0.5) + ' class="editAnnotationIcon" aria-hidden="true"><i class="fas fa-ellipsis-h editAnnotationIcon"></i></span></button> </span>';
+      }
+      else {
+        // filter (Step 2) has NOT been passed, therefore create annotationName with DELETE button
+        var annotationNameSpan_html ='<span class="annotationName annotationName-' + annotation + '" id=' + (tokenId_before+0.5) + '> ' + displayName + ' <button type="button" class="close deleteFILTERAnnotation editAnnotationIcon" aria-label="Close"><span id=' + (tokenId_before+0.5) + ' class="deleteFILTERAnnotationIcon editAnnotationIcon" aria-hidden="true">&times;</span></button> </span>';
+      }
+      //<button type="button" class="close" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+      $(annotationNameSpan_html).insertAfter("#" + tokenId_before);
+    };
+
+    function removeTokenAnnotation(tokenId) {
+      $("#"+tokenId).removeClass();
+
+    };
+
+    function removeAnnotationNameSpan(tokenId) {
+      $("#" + tokenId).remove();
+    };
+
+
+    function loadFeedback() {
+      // set the value of the feedback input box based on local storage data
+      $("textarea[name='feedback']").val(window.feedback);
+    }
+
+
+  </script>
+
+  <script>
+    $(document).ready(function () {
+
+      // make sure that focus is on text field as soon as certainty modal is opened
+      $('#certaintyModal').on('shown.bs.modal', function () {
+        $('#certaintyModalInput').trigger('focus')
+      });
+
+
+      $('#annotationButtons > button').not('button.annotationInfoButton').on('click',(function () {
+        window.pressedAnnotationButton = this.id;
+        if (window.filterData_step2.filterPassed === false) {
+          // the worker is in currently on the FILTER (Step 2) page
+
+          let selection_validity = window.currentSelectionToBeAnnotated.valid;
+          let selection_start_id = window.currentSelectionToBeAnnotated.start_id;
+          let selection_end_id = window.currentSelectionToBeAnnotated.end_id;
+
+
+          if (selection_validity==true) {
+            updateAnnotatedTextFILTERSTEP2(parseInt(selection_start_id), parseInt(selection_end_id), window.pressedAnnotationButton);
+            disableAnnotationButtons();
+          }
+
+          // unselect all tokens
+          unselectAllTokens();
+          // and disable the annotation buttons
+          disableAnnotationButtons();
+          
+          updateWorkerData();
+
+          logger = logger.concat(Date.now(), "/Add FILTER (Step 2) annotation. type=", pressedAnnotationButton, "start=", selection_start_id, "end=", selection_end_id, "//");
+
+        }
+        else {
+          // the worker already passed the filter (Step 2) and is now on the annotation page
+        
+          window.modalMode = 'NewAnnotation';
+
+          // clear certainty modal radio button and input text
+          $("#certaintyRadioButtons input:radio:checked").prop("checked", false);
+          $('#certaintyModalInput').val("");
+          // remove all red borders
+          $("#certaintyRadioButtons").css("border", "");
+          $("#keywordSelection").css("border", "");
+          $("#certaintyModalInput").css("border", "");
+          // hide delete button
+          $("#deleteAnnotation-wrapper").addClass("hidden");
+          // hide changeAnnotationType buttons
+          $("#changeAnnotationType").addClass("hidden");
+          // set text of save annotation button
+          $("#saveAnnotation").text("Save Annotation");
+          // disable the save annotation button
+          $('#saveAnnotation').prop("disabled", true);
+
+          
+          var keywordSelectionDIV = $('#keywordSelection');
+          keywordSelectionDIV.empty();
+
+          if (currentSelectionToBeAnnotated.start_id == currentSelectionToBeAnnotated.end_id) {
+            //hide keywords section since there the annotation only contains one token
+            $("#keywordSelection-wrapper").addClass("hidden");
+          }
+          else {
+            //hide keywords section since there the annotation only contains one token
+            $("#keywordSelection-wrapper").removeClass("hidden");
+            
+            let annotated_tokens = $("#textToAnnotate .selectedTokensToBeAnnotated").clone();
+
+            $.each(annotated_tokens, function(nr, annotatedTokenSpan) {
+              keywordSelectionDIV.append($(annotatedTokenSpan));
+            });
+
+            //remove selectedTokensToBeAnnotated class in keywordSelection div
+            keywordSelectionDIV.children().removeClass("selectedTokensToBeAnnotated");
+
+            //keywordSelectionDIV.append($("<a class='keywordSelectionButton' id='" + annotatedTokenSpan.id + "'>" + annotatedTokenSpan + "</a>"));
+            keywordSelectionDIV.children().wrap( "<a class='keywordSelectionButton'></a>" );
+          }
+
+          let annotationType_displayName = $(this).html();
+
+          // first remove all classes and then add class to modalheader for css styling reasons
+          $(".modal-header").removeClass().addClass("modal-header").addClass(window.pressedAnnotationButton);
+          // then extend the modal header text
+          let headerText = "New annotation" + ": <u><b>" + annotationType_displayName + "</b></u>";
+          $("#exampleModalLongTitle").html(headerText);
+
+          // open the modal
+          $('#certaintyModal').modal({
+            keyboard: false
+          });
+          
+          logger = logger.concat(Date.now(), "/New annotation. type=", pressedAnnotationButton, "//");
+        }
+      })
+      );
+
+
+      $(document).on("click", "#changeAnnotationType-buttons > button", function(){
+        // click event of changeAnnotationType-buttons is nested in a document click event listener since these buttons are created dynamically when an annotation is being edited
+        
+        // change the annotation_type of the annotation based on the id of the pressed button
+        window.pressedAnnotationButton = this.id;
+
+        // remove the orange border from all buttons
+        $("#changeAnnotationType-buttons > button").css("border", "4px solid white");
+        // then add orange button to selected new annotation_type
+        $("#changeAnnotationType-buttons #" + this.id).css("border", "4px solid orange");
+
+        return false;
+      });
+
+
+      $('button#saveAnnotation').on('click',(function () {
+        if (modalMode == 'EditAnnotation') {
+          // get id of deleteButton
+          let idToDelete = $(".deleteAnnotation").attr('id');
+
+          // delete annotation according to clicked delete button id
+          deleteAnnotation(idToDelete);
+          // after annotation is deleted create annotation newly including the changes
+
+        }
+
+        let selection_validity = window.currentSelectionToBeAnnotated.valid;
+        let selection_start_id = window.currentSelectionToBeAnnotated.start_id;
+        let selection_end_id = window.currentSelectionToBeAnnotated.end_id;
+        let selectedKeywords = $(".keywordSelectionButton.keywordSelectionButton-selected");
+        let selectedKeywordIDs = [];
+
+        selectedKeywords.each(function( index ) {
+          // loop through all selected keywords and add them to the array so that it can be saved within the new annotation
+          let token_id = $(this).children("span").first().attr("id");
+          selectedKeywordIDs.push(token_id);
+        });
+        
+        let certaintyModalInput = $('#certaintyModalInput').val();
+        var certaintyButton = $('#certaintyRadioButtons input:radio:checked').val();
+
+        if (certaintyButton == null) {
+          var certaintyButton = -1;
+        }
+
+
+        if (selection_validity==true) {
+          updateAnnotatedText(parseInt(selection_start_id), parseInt(selection_end_id), window.pressedAnnotationButton, window.paragraphNumber, certaintyButton, certaintyModalInput, selectedKeywordIDs);
+          disableAnnotationButtons();
+        }
+
+        // unselect all tokens
+        unselectAllTokens();
+        // and disable the annotation buttons
+        disableAnnotationButtons();
+        // hide modal
+        $('#certaintyModal').modal('toggle');
+        
+        updateWorkerData();
+
+        logger = logger.concat(Date.now(), "/Save annotation. type=", pressedAnnotationButton, "start=", selection_start_id, "end=", selection_end_id, "//");
+
+      }));
+
+      $('button.deleteAnnotation').on('click',(function () {
+        // get id of deleteButton
+        let idToDelete = $(".deleteAnnotation").attr('id');
+
+        // delete annotation according to clicked delete button id
+        deleteAnnotation(idToDelete);
+
+        // unselect all tokens
+        unselectAllTokens();
+        // and disable the annotation buttons
+        disableAnnotationButtons();
+        // hide modal
+        $('#certaintyModal').modal('toggle');
+        
+        updateWorkerData();
+
+        logger = logger.concat(Date.now(), "/Delete annotation. id=", idToDelete, "//");
+
+      }));
+
+
+      /* click handlers so that every time a worker enters something in the modal, the save annotation button is enabled in case no input is missing anymore. This makes sure that a worker always has to fill out everything */
+
+      $(document).on("click", ".keywordSelectionButton", function(){
+        // click event of keyword buttons is nested in a document click event listener since keyword buttons are created dynamically
+        $(this).toggleClass("keywordSelectionButton-selected");
+        updateSaveAnnotationButton();
+
+        return false;
+      });
+
+      $(function(){
+        // whenever a radiobutton is clicked, check if save annotation button can be enabled
+        $('#certaintyRadioButtons li').click(function(){
+          updateSaveAnnotationButton();
+        });
+
+        // whenever feedback-textfield changes, update worker data on server
+        $("textarea[name='feedback']").on('change keydown paste input', function(){
+          updateWorkerData();
+        });
+
+      });
+
+      $("#saveAnnotationWrapper").hover(function(){
+        // when worker hovers over disabled saveAnnotation-button, indicate all empty inputs with a red border
+        updateSaveAnnotationButton(true);
+      });
+
+      $("#certaintyRadioButtons li").click(function(){
+        // worker clicks on label or next to label, then automatically check the nearby radio button in annotation modal
+        let li_value = $(this).attr("value");
+        $("input[name='likert'][value='" + li_value + "']").prop("checked", true);
+      });
+
+    });
+
+    function unselectAllTokens(){
+      // unselect all currently selected tokens
+      $('#textToAnnotate .selectedTokensToBeAnnotated').removeClass('selectedTokensToBeAnnotated');
+    };
+
+
+    function getSelectedTextByUser() {
+      // Function to get the Selected Text 
+      let selectedText = ''; 
+
+      // window.getSelection 
+      if (window.getSelection) {
+        selectedText = window.getSelection(); 
+      }
+      // document.getSelection 
+      else if (document.getSelection) { 
+        selectedText = document.getSelection(); 
+      }
+      // document.selection 
+      else if (document.selection) { 
+        selectedText = document.selection.createRange().text; 
+      }
+      // get id of the first selected token
+      let selection_start_id = selectedText.anchorNode.parentElement.id;
+      // get id of the second selected token
+      let selection_end_id = selectedText.focusNode.parentElement.id;
+      return {
+        selectedText: selectedText,
+        selection_start_id: selection_start_id,
+        selection_end_id: selection_end_id
+        }
+    };
+
+    function clearSelection() {
+      // clear the selected text visually
+      if (window.getSelection) {
+        if (window.getSelection().empty) {  // Chrome
+          window.getSelection().empty();
+        }
+        else if (window.getSelection().removeAllRanges) {  // Firefox
+          window.getSelection().removeAllRanges();
+        }
+      }
+      else if (document.selection) {  // IE?
+        document.selection.empty();
+      }
+    };
+
+    function updateAnnotatedText(start_id, end_id, annotation_new, paragraph, certaintyButton, certaintyModalInput, selectedKeywordIDs) {
+
+      if (start_id > end_id){
+        // change start and end if end_id is actually smaller than start_id
+        var start_id_new = end_id;
+        var end_id_new = start_id;
+      }
+      else {
+        var start_id_new = start_id;
+        var end_id_new = end_id;
+      }
+
+      let annotations_after = [];
+
+      // check if annotations already exist for this paragraph
+      if (paragraph in window.annotations) {
+
+        let annotation_before = annotations[paragraph];
+
+
+
+        // loop through all already existing annotations
+        for (var i = 0; i < annotation_before.length; i++) {
+
+          var start = annotation_before[i][0];
+          var end = annotation_before[i][1];
+
+          var oldAnnotationLength = Math.abs(end - start) + 1;
+          var annotation = annotation_before[i][2];
+          annotationsAreOverlapping = is_overlapping(start, end, start_id_new, end_id_new);
+
+          if (annotationsAreOverlapping[0]){
+            // new annotation overlaps with already existing annotation
+
+            if (annotationsAreOverlapping[1] == oldAnnotationLength) {
+              // the new annotation overlaps the entire old annotation
+              // remove the old annotationName Span
+              removeAnnotationNameSpan(end + "\\.5");
+              //$("#" + end + "\\.5").remove();
+            }
+
+            else {
+              // the new annotation overlaps only a part of the old annotation 
+
+              if (start_id_new > start) {
+                // there is a remaining part on the left side
+
+                let valueOfLastToken = $('#' + (start_id_new - 1)).text();
+                if (isForbiddenToken(valueOfLastToken)) {
+                  // cut last token since it is forbidden token
+                  var end_of_remaining_left_part = (start_id_new - 2);
+                }
+                else {
+                  var end_of_remaining_left_part = (start_id_new - 1);
+                }
+
+                // add annotationName span for left remaining part of old annotation
+                addAnnotationName(end_of_remaining_left_part, annotation);
+                // make sure that last token has css border-radius again
+                addTokenAnnotation(end_of_remaining_left_part, annotation, "lastToken")
+
+                // push the left remaining part of old annotation to the annotations-array
+                annotations_after.push([start, end_of_remaining_left_part, annotation, certaintyButton, certaintyModalInput, selectedKeywordIDs, ({{text_to_annotate|tojson}})[paragraph][start]["start"], ({{text_to_annotate|tojson}})[paragraph][end_of_remaining_left_part]["end"]]);
+              }
+
+              if (end_id_new >= end) {
+                // the new annotation overlaps only a part of the old annotation and there is NO remaining part on the right side
+                // remove the old annotationName Span
+                removeAnnotationNameSpan(end + "\\.5");
+              }
+              else {
+                // the new annotation overlaps only a part of the old annotation and there IS A remaining part on the right side
+                // push the right remaining part of old annotation to the annotations-array
+                
+                let valueOfFirstToken = $('#' + (end_id_new + 1)).text();
+                if (isForbiddenToken(valueOfFirstToken)) {
+                  // cut first token since it is forbidden token
+                  var start_of_remaining_right_part = (end_id_new + 2);
+                  removeTokenAnnotation(end_id_new + 1);
+                  removeAnnotationNameSpan((end_id_new + 1) + "\\.5");
+
+                }
+                else {
+                  var start_of_remaining_right_part = (end_id_new + 1);
+                }
+
+                if (!(start_of_remaining_right_part > end)) {
+                  // add remaining right part to annotations array in case it is not just a forbidden token
+                  annotations_after.push([start_of_remaining_right_part, end, annotation, certaintyButton, certaintyModalInput, selectedKeywordIDs, ({{text_to_annotate|tojson}})[paragraph][start_of_remaining_right_part]["start"], ({{text_to_annotate|tojson}})[paragraph][end]["end"]]);
+                  // make sure that first token has css border-radius again
+                  addTokenAnnotation(start_of_remaining_right_part, annotation, "firstToken")
+                }
+              }
+            }
+
+          }
+
+          else {
+            // new annotation DOESN'T overlap with this already existing annotation
+            annotations_after.push(annotation_before[i]);
+          }
+        }
+      }
+      
+      // push the new annotation to the annotations-array
+      annotations_after.push([start_id_new, end_id_new, annotation_new, certaintyButton, certaintyModalInput, selectedKeywordIDs, ({{text_to_annotate|tojson}})[paragraph][start_id_new]["start"], ({{text_to_annotate|tojson}})[paragraph][end_id_new]["end"]]);
+
+      // remove annotation and annotate newly for newly annotated tokens
+      for (var i = parseFloat(start_id_new); i <= parseFloat(end_id_new); i++) {
+        removeTokenAnnotation(i);
+        if (i == parseFloat(start_id_new)) {
+          addTokenAnnotation(i, annotation_new, "firstToken")
+        }
+        if (i == parseFloat(end_id_new)) {
+          addTokenAnnotation(i, annotation_new, "lastToken")
+        }
+        if ((i > parseFloat(start_id_new)) | (i < parseFloat(end_id_new))) {
+          addTokenAnnotation(i, annotation_new, false);
+        }          
+      }
+      
+      // annotate the new annotationName Span
+      addAnnotationName(end_id_new, annotation_new);
+
+      // update the size of the annotationName and the edit icon. This is necessary if the size has been changed by the worker.
+      updateTextSize();
+
+      // update the global annotations array
+      window.annotations[paragraph] = annotations_after;
+
+    }
+
+    function updateAnnotatedTextFILTERSTEP2(start_id, end_id, annotation_new) {
+
+      if (start_id > end_id){
+        // change start and end if end_id is actually smaller than start_id
+        var start_id_new = end_id;
+        var end_id_new = start_id;
+      }
+      else {
+        var start_id_new = start_id;
+        var end_id_new = end_id;
+      }
+
+      let annotations_after = [];
+
+
+      let annotation_before = window.filterData_step2.currentAnnotation;
+
+      // loop through all already existing annotations
+      for (var i = 0; i < annotation_before.length; i++) {
+
+        var start = annotation_before[i][0];
+        var end = annotation_before[i][1];
+
+        var oldAnnotationLength = Math.abs(end - start) + 1;
+        var annotation = annotation_before[i][2];
+        annotationsAreOverlapping = is_overlapping(start, end, start_id_new, end_id_new);
+
+        if (annotationsAreOverlapping[0]){
+          // new annotation overlaps with already existing annotation
+
+          if (annotationsAreOverlapping[1] == oldAnnotationLength) {
+            // the new annotation overlaps the entire old annotation
+            // remove the old annotationName Span
+            removeAnnotationNameSpan(end + "\\.5");
+            //$("#" + end + "\\.5").remove();
+          }
+
+          else {
+            // the new annotation overlaps only a part of the old annotation 
+
+            if (start_id_new > start) {
+              // there is a remaining part on the left side
+
+              let valueOfLastToken = $('#' + (start_id_new - 1)).text();
+              if (isForbiddenToken(valueOfLastToken)) {
+                // cut last token since it is forbidden token
+                var end_of_remaining_left_part = (start_id_new - 2);
+              }
+              else {
+                var end_of_remaining_left_part = (start_id_new - 1);
+              }
+
+              // add annotationName span for left remaining part of old annotation
+              addAnnotationName(end_of_remaining_left_part, annotation);
+              // make sure that last token has css border-radius again
+              addTokenAnnotation(end_of_remaining_left_part, annotation, "lastToken")
+
+              // push the left remaining part of old annotation to the annotations-array
+              annotations_after.push([start, end_of_remaining_left_part, annotation]);
+            }
+
+            if (end_id_new >= end) {
+              // the new annotation overlaps only a part of the old annotation and there is NO remaining part on the right side
+              // remove the old annotationName Span
+              removeAnnotationNameSpan(end + "\\.5");
+            }
+            else {
+              // the new annotation overlaps only a part of the old annotation and there IS A remaining part on the right side
+              // push the right remaining part of old annotation to the annotations-array
+              
+              let valueOfFirstToken = $('#' + (end_id_new + 1)).text();
+              if (isForbiddenToken(valueOfFirstToken)) {
+                // cut first token since it is forbidden token
+                var start_of_remaining_right_part = (end_id_new + 2);
+                removeTokenAnnotation(end_id_new + 1);
+                removeAnnotationNameSpan((end_id_new + 1) + "\\.5");
+
+              }
+              else {
+                var start_of_remaining_right_part = (end_id_new + 1);
+              }
+
+              if (!(start_of_remaining_right_part > end)) {
+                // add remaining right part to annotations array in case it is not just a forbidden token
+                annotations_after.push([start_of_remaining_right_part, end, annotation]);
+                // make sure that first token has css border-radius again
+                addTokenAnnotation(start_of_remaining_right_part, annotation, "firstToken")
+              }
+            }
+          }
+
+        }
+
+        else {
+          // new annotation DOESN'T overlap with this already existing annotation
+          annotations_after.push(annotation_before[i]);
+        }
+      }
+    
+      
+      // push the new annotation to the annotations-array
+      annotations_after.push([start_id_new, end_id_new, annotation_new]);
+
+      // remove annotation and annotate newly for newly annotated tokens
+      for (var i = parseFloat(start_id_new); i <= parseFloat(end_id_new); i++) {
+        removeTokenAnnotation(i);
+        if (i == parseFloat(start_id_new)) {
+          addTokenAnnotation(i, annotation_new, "firstToken")
+        }
+        if (i == parseFloat(end_id_new)) {
+          addTokenAnnotation(i, annotation_new, "lastToken")
+        }
+        if ((i > parseFloat(start_id_new)) | (i < parseFloat(end_id_new))) {
+          addTokenAnnotation(i, annotation_new, false);
+        }          
+      }
+      
+      // annotate the new annotationName Span
+      addAnnotationName(end_id_new, annotation_new);
+
+      // update the size of the annotationName and the edit icon. This is necessary if the size has been changed by the worker.
+      updateTextSize();
+
+      // update the global annotations array
+      window.filterData_step2.currentAnnotation = annotations_after;
+
+    }
+
+    function is_overlapping(x1,x2,y1,y2) {
+      //check if two annotations are overlapping
+      let isOverlapping = Math.max(x1,y1) <= Math.min(x2,y2);
+      if (isOverlapping) {
+        var overlappingAmount = Math.min(x2,y2) - Math.max(x1,y1) + 1;
+      }
+      else {
+        var overlappingAmount = 0;
+      }
+      return [isOverlapping, overlappingAmount];
+    }
+
+    function updateSaveAnnotationButton(onHover=false) {
+
+      let certaintyRadioButton = $('#certaintyRadioButtons input:radio:checked').val();
+      let keywordSelection = $(".keywordSelectionButton.keywordSelectionButton-selected");
+
+      let certaintyRadioButton_isFilled = typeof certaintyRadioButton != 'undefined';
+      if (currentSelectionToBeAnnotated.start_id == currentSelectionToBeAnnotated.end_id) {
+        // set keywordSelection_isFilled=true since annotation consists of only one token
+        var keywordSelection_isFilled = true;
+      }
+      else {
+        var keywordSelection_isFilled = keywordSelection.length != 0;
+      }
+
+      //remove red border if now worker filled it out
+      if (certaintyRadioButton_isFilled) {
+        $("#certaintyRadioButtons").css("border", "");
+      }
+      if (keywordSelection_isFilled) {
+        $("#keywordSelection").css("border", "");
+      }
+
+      if (certaintyRadioButton_isFilled && keywordSelection_isFilled) {
+        // enable save button
+        $('#saveAnnotation').prop("disabled", false);
+        // deactivate popover
+        $('#saveAnnotationWrapper').removeAttr( "data-original-title" );
+        
+      }
+      else {
+        // disable save button
+        $('#saveAnnotation').prop("disabled", true);
+        // activate popover
+        $('#saveAnnotationWrapper').attr("data-original-title", "All inputs are required to save the annotation.");
+
+        if (onHover) {
+          // if function was called because worker hovered over disabled saveAnnotation-button, visually show which input is missing
+          //remove red border if now worker filled it out
+          if (typeof certaintyRadioButton == 'undefined') {
+            $("#certaintyRadioButtons").css("border", "2px solid red");
+          }
+          if (keywordSelection.length == 0) {
+            $("#keywordSelection").css("border", "2px solid red");
+          }
+        }
+      }
+
+    };
+
+  </script>
+
+
+</head>
+
+<body>
+
+  <div id="filter-alerts"></div>
+
+  <div class="container-fluid justify-content-center">
+    <div class="hidden row" id="instructions">
+      <div id="general-instructions">{% block instructions %}{% endblock %}</div>
+      <div id="startAnnotationButton" class="tooltip-wrapper disabled">
+        <button id="startAnnotation" class="btn btn-success btn-lg btn-block">Start!</button>
+      </div>
+    </div>
+    <div class="sticky-top" style="background-color: white;">
+      <div style="background-color: white; height: 4px"></div>
+      <div class="row progress hidden" id="progress">
+          <div class="progress-bar bg-success" role="progressbar" aria-valuenow="70"
+          aria-valuemin="0" aria-valuemax="100">
+            <span class="sr-only"></span>
+          </div>
+      </div>
+
+      <div id="filter-instructions" class="row justify-content-left hidden"></div>
+      <div class="row justify-content-center hidden" id="userControls">
+        <button id="smallerTextButton" class="btn btn-outline-primary"><i class="fa fa-font"></i></button>
+        <button id="biggerTextButton" class="btn btn-outline-primary"><i class="fa fa-font"></i></button>
+      </div>
+      <div class="row justify-content-center hidden" id="annotationButtons"></div>
+    </div>
+
+    <div class="row hidden" id="textToAnnotate-wrapper">
+      <div id="textToAnnotate"></div>
+    </div>
+
+    <div class="row hidden" id="filterButtonsStep2">
+      <div class="col-sm" id="previousPage">
+        <button id="previousPageButtonFILTERStep2" class="btn btn-basic previous">&laquo; Instructions</button>
+      </div>
+      <div class="col-sm" id="filterButtonsCheckStep2">
+        <button id="checkFilterAnswerStep2" class="btn btn-success checkbutton">Check</button>
+      </div>
+    </div>
+    <div class="row hidden" id="navigationButtons">
+      <div class="col-sm" id="previousPage">
+        <button id="previousPageButton" class="btn btn-basic previous">&laquo; Previous</button>
+      </div>
+      <div class="col-sm" id="nextPage">
+        <button id="nextPageButton" class="btn btn-basic next">Next &raquo;</button>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="hidden container-fluid" id="feedback">
+    <!-- HTML to handle creating the HIT form -->
+    <form id="mturk_form" method="post" name="mturk_form">
+      <input type='hidden' value='' name='assignmentId' id='assignmentId'/>
+      <input type='hidden' value='' name='submit_filter_data_step2' id='submit_filter_data_step2'/>
+      <input type='hidden' value='' name='submit_annotations' id='submit_annotations'/>
+      <input type='hidden' value='' name='submit_worker_assignment_data' id='submit_worker_assignment_data'/>
+      <input type='hidden' value='' name='submit_logger' id='submit_logger'/>
+
+      <div class="row justify-content-center">
+        <strong>You're almost there!</strong>
+      </div>
+      <br>
+      <div class="row justify-content-center">
+        <h5>Please give us a feedback by answering the following questions and then submit the HIT:</h5>
+      </div>
+      <div class="row justify-content-center">
+        <ul>
+          <li>Was the Pop Quiz difficult?</li>
+          <li>Was it easy to understand what the task is about?</li>
+          <li>Were the instructions clear? If not, what exactly was not clear?</li>
+          <li>Were the components easy to identify?</li>
+          <li>Is there any other feedback that could help us to improve the task?</li>
+        </ul>
+      </div>
+
+      <div class="row justify-content-center" id="feedback-textbox">
+        <textarea name="feedback" style="min-width: 80%" rows=4 placeholder="Please enter your feedback here..."></textarea>
+      </div>
+      
+      <div class="row justify-content-center">
+        <!-- HTML to handle submitting the HIT -->
+        <button id="submitButton" class="btn btn-warning btn-lg btn-block" type="submit" value="Submit">Finish and Submit HIT</button>
+      </div>
+    </form>
+
+    <div class="row justify-content-center">
+      <button id="previousPageButton-feedback" class="btn btn-basic">&laquo; Previous</button>
+    </div>
+
+  </div>
+
+
+  <!-- Certainty Modal -->
+  <div class="modal fade" id="certaintyModal" tabindex="-1" role="dialog" aria-labelledby="certaintyModal" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+      <div class="modal-content">
+        <div id="modal-header" class="modal-header">
+          <h3 class="modal-title" id="exampleModalLongTitle">New annotation</h3>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div id="changeAnnotationType">
+            <p class="font-weight-bold">Change annotation type:</p>
+            <div id="changeAnnotationType-buttons"></div>
+          </div>
+
+          <p class="font-weight-bold" style="margin-top: 6px;">Please indicate how certain you are that this annotation is correct:</p>
+
+          <div id="certaintyRadioButtons">
+            <ul class='likert'>
+              <li>
+                <input type="radio" name="likert" value="not_certain">
+                <label>Not certain at all</label>
+              </li>
+              <li>
+                <input type="radio" name="likert" value="more_or_less_certain">
+                <label>More or less certain</label>
+              </li>
+              <li>
+                <input type="radio" name="likert" value="very_certain">
+                <label>Very Certain</label>
+              </li>              
+            </ul>
+          </div>
+
+          <div id="keywordSelection-wrapper">
+            <p class="font-weight-bold">Please select those words which made you decide to do this annotation:
+              <div id="keywordSelection"></div>
+            </p>
+          </div>
+          
+
+          <p class="font-weight-bold" style="margin-top: 6px;">Please specify what lead you to the decision to annotate these words / this sentence:
+            <input id="certaintyModalInput" class="form-control" type="text" placeholder="Please specify in your own words...">
+          </p>
+
+
+        </div>
+        <div class="modal-footer">
+          <div id="deleteAnnotation-wrapper" class="mr-auto">
+            <button type="button" class="btn btn-danger mr-auto deleteAnnotation" >Delete this Annotation</button>
+          </div>
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+          <div id="saveAnnotationWrapper" class="tooltip-wrapper disabled" title="All inputs are required to save the annotation.">
+            <button id="saveAnnotation" type="button" class="btn btn-primary" disabled>Save Annotation</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+
+
+</body>
+
+<script>
+
+  //$('#textToAnnotate').on('mousedown', '*', function() {
+  $(document).on('mousedown', '*', function(evnt) {
+    // annotation button is clicked
+    let target = evnt.target;
+    let targetTagName = evnt.target.tagName;
+    let targetParentNode = evnt.target.parentNode.id;
+    if ((targetTagName == "BUTTON") && (targetParentNode == "annotationButtons")) {
+      // return function to not do anything when one of the annotation buttons was clicked
+      return;
+    }
+    else {
+
+      //unselectAllTokens();
+      // and disable the annotation buttons
+      //disableAnnotationButtons();
+    }
+
+  });
+
+
+  // this var is used to enable text selection as soon as the user pressed on some token
+  var isDown = false;
+
+  // the mousedown has to be done on a specific token
+  $("#textToAnnotate").mousedown(function(){
+    // only continue with annotation if mousedown was not done on edit button
+    if (!($(event.target).hasClass('editAnnotationIcon'))) {
+      //console.log("is down");
+      isDown = true;
+      // unselect all tokens
+      unselectAllTokens();
+      // and disable the annotation buttons
+      disableAnnotationButtons();
+    }
+  });
+  
+  $("div#textToAnnotate").on("click", function() {
+    // only continue with edit if click was done on edit button
+    if ($(event.target).hasClass('editAnnotationIcon')) {
+      if (window.filterData_step2.filterPassed === true) {
+        let idToEdit = event.target.parentElement.id - 0.5;
+        // filter (Step 2) has been passed, therefore edit annotation
+        editAnnotation(idToEdit);
+        logger = logger.concat(Date.now(), "/Edit annotation. id=", idToEdit, "//");
+        
+      }
+      else {
+        // filter (Step 2) has NOT been passed, therefore DELETE annotation
+        let idToDelete = event.target.id - 0.5;
+        deleteAnnotationFILTERStep2(idToDelete);
+        logger = logger.concat(Date.now(), "/Deleted FILTER (Step 2) annotation. id=", idToDelete, "//");
+      }
+    }
+  });
+  
+  $("button#smallerTextButton").on("click", function() {
+    let oldSize = parseInt($("#textToAnnotate").css('font-size').replace('px', ''));
+    let newSize = (oldSize-2) + "px";
+    let newSizeAnnotationNameSpan = (oldSize-5) + "px";
+    let newSizeEditAnnotationIcon = (oldSize+6) + "px";
+    $("#textToAnnotate").css("fontSize", newSize);
+    $(".annotationName").css("fontSize", newSizeAnnotationNameSpan);
+    $(".editAnnotationIcon").css("fontSize", newSizeEditAnnotationIcon);
+    //disable button if min font-size is set
+    if (oldSize < 8) {
+      $('button#smallerTextButton').prop("disabled", true);
+    }
+    //enable button for bigger text
+    $('button#biggerTextButton').prop("disabled", false);
+  });
+  
+  $("button#biggerTextButton").on("click", function() {
+    let oldSize = parseInt($("#textToAnnotate").css('font-size').replace('px', ''));
+    let newSize = (oldSize+2) + "px";
+    let newSizeAnnotationNameSpan = (oldSize-1) + "px";
+    let newSizeEditAnnotationIcon = (oldSize+10) + "px";
+    $("#textToAnnotate").css("fontSize", newSize);
+    $(".annotationName").css("fontSize", newSizeAnnotationNameSpan);
+    $(".editAnnotationIcon").css("fontSize", newSizeEditAnnotationIcon);
+    //disable button if max font-size is set
+    if (oldSize > 50) {
+      $('button#biggerTextButton').prop("disabled", true);
+    }
+    //enable button for smaller text
+    $('button#smallerTextButton').prop("disabled", false);
+  });
+
+  function editAnnotation(idToEdit) {
+    window.modalMode = 'EditAnnotation';
+
+    // clear certainty modal radio button and input text
+    $("#certaintyRadioButtons input:radio:checked").prop("checked", false);
+    $('#certaintyModalInput').val("");
+    // remove all red borders
+    $("#certaintyRadioButtons").css("border", "");
+    $("#keywordSelection").css("border", "");
+    $("#certaintyModalInput").css("border", "");
+    // unhide delete button
+    $("#deleteAnnotation-wrapper").removeClass("hidden");
+    // unhide changeAnnotationType buttons
+    $("#changeAnnotationType").removeClass("hidden");
+    // add buttons to give worker the chance to change the annotation_type
+    $("#changeAnnotationType-buttons").empty();
+    
+
+
+
+    // set text of save annotation button
+    $("#saveAnnotation").text("Save Changes");
+
+    // set id of delete button
+    $("#deleteAnnotation-wrapper button").attr("id", idToEdit);
+
+
+
+    // loop through all already existing annotations to load content of annotation to edit
+    for (var i = annotations[paragraphNumber].length -1; i >= 0; i--) {
+      var annotation_end = annotations[paragraphNumber][i][1];
+      let found = (idToEdit == annotation_end);
+      if (found) {
+        var annotation_start = annotations[paragraphNumber][i][0];
+        var annotation_type = annotations[paragraphNumber][i][2];
+        var annotation_certainty = annotations[paragraphNumber][i][3];
+        var annotation_inputText = annotations[paragraphNumber][i][4];
+        var annotation_keywords = annotations[paragraphNumber][i][5];
+
+        // break loop after annotation has been found
+        break;
+      };
+    }
+
+    // Set global values. This is needed to commit the changes. After worker is done editing the annotation will be deleted and saved as a new annotation including the changes.
+    window.currentSelectionToBeAnnotated.valid = true;
+    window.currentSelectionToBeAnnotated.start_id = annotation_start;
+    window.currentSelectionToBeAnnotated.end_id = annotation_end;
+
+    let allAnnotationButtonsExcludingExampleButtons = $('#annotationButtons > button').not('button.annotationInfoButton');
+    $.each(allAnnotationButtonsExcludingExampleButtons, function(id, token) {
+      let annotationButton = $(token).clone();
+      $(annotationButton).css("margin-right", "5px");
+      $(annotationButton).css("border", "4px solid white");
+      $("#changeAnnotationType-buttons #" + annotation_type).css("border", "4px solid orange");
+      $(annotationButton).prop("disabled",false);
+      $("#changeAnnotationType-buttons").append(annotationButton);
+    });
+
+    window.pressedAnnotationButton = annotation_type;
+    let annotationType_displayName = $("#" + annotation_type).html();
+
+    // first remove all classes and then add class to modalheader for css styling reasons
+    $(".modal-header").removeClass().addClass("modal-header").addClass(window.pressedAnnotationButton);
+    // then extend the modal header text
+    let headerText = "Edit annotation" + ": <u><b>" + annotationType_displayName + "</b></u>";
+    $("#exampleModalLongTitle").html(headerText);
+
+
+    // load modal content
+    $(":radio[value=" + annotation_certainty + "]").prop("checked", true);
+    $('#certaintyModalInput').val(annotation_inputText);
+
+    // load annotation to display all tokens as possible keywords
+    var keywordSelectionDIV = $('#keywordSelection');
+    keywordSelectionDIV.empty();
+    
+    if (annotation_start == annotation_end) {
+      //var annotated_tokens = $("#textToAnnotate #" + annotation_start).clone();
+      //hide keywords section since there the annotation only contains one token
+      $("#keywordSelection-wrapper").addClass("hidden");
+    }
+    else {
+      $("#keywordSelection-wrapper").removeClass("hidden");
+      var annotated_tokens = $("#textToAnnotate #" + annotation_start).nextUntil("#textToAnnotate #" + annotation_end).addBack().next().addBack().clone();
+
+      $.each(annotated_tokens, function(nr, annotatedTokenSpan) {
+        keywordSelectionDIV.append($(annotatedTokenSpan));
+      });
+
+      //remove selectedTokensToBeAnnotated class in keywordSelection div
+      keywordSelectionDIV.children().removeClass();
+    
+      keywordSelectionDIV.children().wrap( "<a class='keywordSelectionButton'></a>" );
+
+      // loop through selected keywords to highlight the ones which were selected by the worker
+      for (var j = annotation_keywords.length -1; j >= 0; j--) {
+        let keyword_parent =$("#keywordSelection #" + annotation_keywords[j] + "").parent();
+        $(keyword_parent).addClass("keywordSelectionButton-selected");
+      }
+
+      //$(this).toggleClass("keywordSelectionButton-selected");
+    }
+
+    // open the modal
+    $('#certaintyModal').modal({
+      keyboard: false
+    });
+
+
+  }
+
+  function deleteAnnotation(IdToDelete) {
+    removeAnnotationNameSpan(IdToDelete + "\\.5");
+    // check if annotations already exist for this paragraph
+    if (paragraphNumber in annotations) {
+      // loop through all already existing annotations
+      for (var i = annotations[paragraphNumber].length -1; i >= 0; i--) {
+        var annotationToDelete_start = annotations[paragraphNumber][i][0];
+        var annotationToDelete_end = annotations[paragraphNumber][i][1];
+        let found = (IdToDelete==annotationToDelete_end);
+        if (found) {
+          // remove annotation for those tokens which belonged to the to be deleted annotation
+          for (var j = annotationToDelete_start; j <= annotationToDelete_end; j++) {
+            removeTokenAnnotation(j);
+          }
+
+          // remove annotation from global annotation array on client
+          window.annotations[paragraphNumber].splice(i, 1);
+          
+          updateWorkerData();
+
+          // break loop after annotation has been found and deleted
+          break;
+        };
+      }
+    }
+
+
+  };
+
+  function deleteAnnotationFILTERStep2(IdToDelete) {
+    removeAnnotationNameSpan(IdToDelete + "\\.5");
+    // check if annotations already exist for this paragraph
+    // loop through all already existing annotations
+    for (var i = window.filterData_step2.currentAnnotation.length -1; i >= 0; i--) {
+      var annotationToDelete_start = window.filterData_step2.currentAnnotation[i][0];
+      var annotationToDelete_end = window.filterData_step2.currentAnnotation[i][1];
+      let found = (IdToDelete==annotationToDelete_end);
+      if (found) {
+        // remove annotation for those tokens which belonged to the to be deleted annotation
+        for (var j = annotationToDelete_start; j <= annotationToDelete_end; j++) {
+          removeTokenAnnotation(j);
+        }
+
+        // remove annotation from global annotation array on client
+        window.filterData_step2.currentAnnotation.splice(i, 1);
+        
+        updateWorkerData();
+
+        // break loop after annotation has been found and deleted
+        break;
+      };
+    }
+
+
+  };
+
+  function getNumberOfFinishPage() {
+    return Object.keys(({{text_to_annotate|tojson}})).length
+  }
+
+  function getPageState(pageNumber) {
+    let numberOfFinishPage = getNumberOfFinishPage();
+    if (pageNumber == -1) {
+      return "instructionsPage"
+    }
+    else if (pageNumber == numberOfFinishPage) {
+      return "finishPage"
+    }
+    else {
+      return "annotationPage"
+    }
+    
+  };
+
+  function updateTextSize() {
+    // update the size of the annotationName and the editIcon to match the current font size in case it was changed by the worker
+    let currentSize = parseInt($("#textToAnnotate").css('font-size').replace('px', ''));
+    let currentSizeAnnotationNameSpan = (currentSize-3) + "px";
+    let currentSizeeditAnnotationIcon = (currentSize+8) + "px";
+    $(".annotationName").css("fontSize", currentSizeAnnotationNameSpan);
+    $(".editAnnotationIcon").css("fontSize", currentSizeeditAnnotationIcon);
+
+  }
+
+  $(document).on('mouseup', function() {
+    let pageState = getPageState(window.paragraphNumber);
+    if (pageState == "annotationPage") {
+      // if the mouse is released somewhere outside the text box, then clear selection immediately, unless modal is open.
+      let modalIsVisible = $('#certaintyModal').is(':visible');
+      if (!modalIsVisible) {
+        if(!($(event.target).is('div#textToAnnotate > span'))){
+          //clear the selected text by user visually
+          clearSelection();
+          //console.log("clear EARLY");
+        }
+      }
+    }
+  });
+  
+  // the mouseup can be done anywhere
+  $('div#textToAnnotate').on('mouseup', '*', function() {
+    // only continue with annotation if mousedown was not done on edit button
+    if (!($(event.target).hasClass('editAnnotationIcon'))) {
+
+      if(isDown){
+        
+        // check if the annotation is valid and return selection if valid
+        let currentSelectionIsValid = isValidAnnotation();
+
+        // set the global currentSelectionToBeAnnotated so that it can then be used by annotation buttons
+        window.currentSelectionToBeAnnotated.valid = currentSelectionIsValid[0];
+        window.currentSelectionToBeAnnotated.start_id = currentSelectionIsValid[1];
+        window.currentSelectionToBeAnnotated.end_id = currentSelectionIsValid[2];
+
+        
+        //enable the annotation buttons as soon as some valid token(s) have been selected
+        if (currentSelectionIsValid[0]) {
+          // enable annotation buttons
+          enableAnnotationButtons();
+          //console.log("yes is valid!");
+        }
+        else {
+          disableAnnotationButtons();
+        }
+
+      }
+    };
+
+    isDown = false;
+
+    //clear the selected text by user visually
+    clearSelection();
+    //console.log("clear late");
+
+  });
+
+
+  // if the mouseup is done between two lines the event handler (as specified above) doesnt relaize it since the click is not done on a child of the div#textToAnnotate. Therefore we need a second handler (with the exact same functionality) which listents to mouseup directly on the div#textToAnnotate
+  $('div#textToAnnotate').on('mouseup', function() {
+    // only continue with annotation if mousedown was not done on edit button
+    if (!($(event.target).hasClass('editAnnotationIcon'))) {
+
+      if(isDown){
+        
+        // check if the annotation is valid and return selection if valid
+        let currentSelectionIsValid = isValidAnnotation();
+
+        // set the global currentSelectionToBeAnnotated so that it can then be used by annotation buttons
+        window.currentSelectionToBeAnnotated.valid = currentSelectionIsValid[0];
+        window.currentSelectionToBeAnnotated.start_id = currentSelectionIsValid[1];
+        window.currentSelectionToBeAnnotated.end_id = currentSelectionIsValid[2];
+
+        
+        //enable the annotation buttons as soon as some valid token(s) have been selected
+        if (currentSelectionIsValid[0]) {
+          // enable annotation buttons
+          enableAnnotationButtons();
+          //console.log("yes is valid!");
+        }
+        else {
+          disableAnnotationButtons();
+        }
+
+      }
+    };
+
+    isDown = false;
+
+    //clear the selected text by user visually
+    clearSelection();
+    //console.log("clear late");
+
+  })
+
+
+  function disableAnnotationButtons() {
+    // disable annotation buttons
+    $('#annotationButtons > button').not( "#annotationButtons .annotationInfoButton" ).prop("disabled",true);
+  };
+
+  function enableAnnotationButtons() {
+    // disable annotation buttons
+    $('#annotationButtons > button').not( "#annotationButtons .annotationInfoButton" ).prop("disabled",false);
+  };
+
+  function isAnnotationNameToken(tokenToBeChecked) {
+    // return true if the token is an "annotationNameToken", such as e.g.: claim/data, hypothesis
+    return !(tokenToBeChecked%1==0);
+  }
+
+  function isValidAnnotation() {
+
+    let selectionByUser = getSelectedTextByUser();
+    let selection_start_id = selectionByUser.selection_start_id;
+    let selection_end_id = selectionByUser.selection_end_id;
+
+    if (parseFloat(selection_start_id) > parseFloat(selection_end_id)) {
+      // make sure that selection_start_id is the lower of the two values
+      var selection_id_lower = selectionByUser.selection_end_id;
+      var selection_id_higher = selectionByUser.selection_start_id;
+    }
+    else {
+      var selection_id_lower = selectionByUser.selection_start_id;
+      var selection_id_higher = selectionByUser.selection_end_id;
+    }
+    
+    if ((selection_id_lower == selection_id_higher) && ((selection_id_lower % 1) != 0) && ((selection_id_higher % 1) != 0)) {
+      // only one annotationNameSpan was selected. Therefore, not valid!
+      return [false, -1, -1];
+    }
+    else {
+      
+      if ((selection_id_lower % 1) != 0) {
+        // adjust lower selection_id as it is an annotationNameSpan
+        var selection_id_lower = (parseFloat(selection_id_lower) + 0.5).toString();
+      }
+      
+      if ((selection_id_higher % 1) != 0) {
+        // adjust higher selection_id as it is an annotationNameSpan
+        var selection_id_higher = (parseFloat(selection_id_higher) - 0.5).toString();
+      }
+      
+      let amountOfTokensSelected = Math.abs((selection_id_higher - selection_id_lower));
+      var valueOfFirstToken = $('#'+selection_id_lower).text();
+      var valueOfLastToken = $('#'+selection_id_higher).text();
+      
+      if (amountOfTokensSelected==1 && isForbiddenToken(valueOfFirstToken) && isForbiddenToken(valueOfLastToken)) {
+        // exactly two tokens were selected and both tokens are forbidden. Hence, buttons can be enabled.
+        return [false, selection_id_lower, selection_id_higher];
+      }
+      else if (amountOfTokensSelected>=1) {
+        // more than one token was selected. Hence, buttons can be enabled.
+
+        if (isForbiddenToken(valueOfLastToken)) {
+          // cut last token since it is forbidden token
+          var selection_id_higher = (parseFloat(selection_id_higher) - 1);
+        }
+
+        if (isForbiddenToken(valueOfFirstToken)) {
+          // cut first token since it is forbidden token
+          var selection_id_lower = (parseFloat(selection_id_lower) + 1);
+        }
+        
+        for (var i = parseFloat(selection_id_lower); i <= parseFloat(selection_id_higher); i++) {
+          $('#'+i).addClass('selectedTokensToBeAnnotated');
+        }
+        return [true, selection_id_lower, selection_id_higher];
+      }
+      else if (amountOfTokensSelected===0){
+        let selectedTokenValue = $("#" + selection_id_lower).text();
+        if (isForbiddenToken(selectedTokenValue)) {
+          // only one button was selected. Check if it is a "forbidden" token such as e.g.: ./,/;/...
+          return [false, selection_id_lower, selection_id_higher];
+        }
+        else {
+          // selected single token is valid
+          $("#"+parseFloat(selection_id_lower)).addClass('selectedTokensToBeAnnotated');
+          return [true, selection_id_lower, selection_id_higher];
+        }
+      }
+      else {
+        return [false, -1, -1];
+      }
+    }
+  }
+
+  </script>
+
+  <script>
+
+    $("button#startAnnotation").click(function() {
+      jumpToPage(getNewParagraphNumber(-1));
+      updateWorkerData();
+    });
+    
+    $("button#nextPageButton").click(function() {
+      jumpToPage(getNewParagraphNumber(1));
+      updateWorkerData();
+    });
+    
+    $("button#previousPageButton").click(function() {
+      jumpToPage(getNewParagraphNumber(0));
+      updateWorkerData();
+    });
+    
+    $("button#previousPageButton-feedback").click(function() {
+      jumpToPage(getNewParagraphNumber(0));
+      updateWorkerData();
+    });
+
+    $("button#previousPageButtonFILTERStep2").click(function() {
+      jumpToPage(getNewParagraphNumber(0));
+      updateWorkerData();
+    });
+
+    $("button#checkFilterAnswerStep2").click(function() {
+      // the worker clicked on the "Check" button to see whether his annotation is correct
+
+      // first of all, remove all currently visible alerts
+      closeAllAlerts();
+
+      // add the current annotation to the tried parts to be able to keep track of the different attempts made by this worker
+      addCurrentAnnotationsTo_filterStep2_tried_parts();
+
+      // scroll to the top of the page to make sure that worker sees the displayed hint
+      window.scrollTo(0, 0);
+
+      var maxNrOfWrongAttemptsUntilSolutionIsShown = {{filter_attempts_before_revealing_solution}};
+
+      
+      // get the solution for the current question
+      var solution = {{filter_questions_step2|tojson}}[current_filter_question_id]['solution'];
+      
+
+      answerIsCorrect = checkIfAnswerIsCorrect(window.filterData_step2.currentAnnotation, solution);
+      
+      if (answerIsCorrect) {
+        // question was answered correctly
+        // mark answer for the current question as correct
+        markFilterStep2AsCorrect(solution);
+        // clear current worker annotation
+        clearCurrentFilterStep2Selection();
+        // and continue to the next question
+        // jump to first paragraph of annotation page. If filter (Step 2) is not passed, user will automatically land on filter (Step 2) page again but with next example.
+        jumpToPage(0);
+      }
+      else {
+        // answer is wrong
+        
+        
+        //if max attempts have been reached: tell worker to finish because filter step 2 has been failed
+
+        if (isTotalNumberOfWrongAttemptsReached()) {
+          // the worker already did too many attempts, therefore filter (Step 2) is failed!
+          // remove all currently visible alerts
+          closeAllAlerts();
+          $("#previousPageButton-feedback").addClass("hidden");
+          // then jump to finish page
+          jumpToPage(getNumberOfFinishPage());
+          let alert_message = `
+          <div id="alert-danger-nomoreattempts" class="alert alert-danger alert-dismissible fade show" role="alert" style="display: none;">
+            <h5 class="alert-heading">No more attempts!</h5>
+            You do not have any attempts left. For this reason you cannot continue working on this task. Please press the submit button to finish. Thank you for your participation. We will compensate you for the invested time in completing this pop quiz.
+
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          `
+          // prepend alert to filter-alerts DIV to make sure that the alert is showed at the top of the page
+          $('#filter-alerts').prepend(alert_message);
+          $('#alert-danger-nomoreattempts').toggle("slide:right");
+        }
+        else {
+          // the annotation is wrong but the worker did not reach to max amount of attempts
+          console.log("max attempts not reached yet.")
+          
+
+
+
+          var thisQuestionsNrOfWrongAttempts = getThisQuestionsNrOfWrongAttempts();
+
+          var worker_did_zero_annotations_in_all_attempts = window.filterData_step2['tried_parts'][current_filter_question_id]['annotations'].every((el) => {
+            return el.length == 0;
+          });
+          // returns true if the worker has not tried to annotate anything even once. Therefore, do not show the solution yet but tell him to annotate something even if max attempts is already reached.
+
+
+          if (thisQuestionsNrOfWrongAttempts >= maxNrOfWrongAttemptsUntilSolutionIsShown && !worker_did_zero_annotations_in_all_attempts) {
+            // the amount of max wrong attempts is reached and the worker tried to annotate something at least once, therefore show the worker the correct answer
+            showCorrectSolution(current_filter_question_id, maxNrOfWrongAttemptsUntilSolutionIsShown);
+          }
+          else {
+            // show an alert, telling the worker that the answer is wrong
+            alert_wrongAnnotation();
+            // the amount of max wrong attempts is not reached yet, therefore show the worker a hint
+            showFilterStep2Hint(solution);
+          }
+          
+          // log answer to heroku log
+          submit_data_wrongfilter2answer();
+
+          // clear current worker annotation
+          clearCurrentFilterStep2Selection();
+          // reload text div to make sure that no span is annotated anymore
+          displayTextToAnnotateFILTERSTEP2();
+        }
+      }
+
+      updateWorkerData();
+
+    });
+
+    $(document).on("click", "button#skipQuestionFilterStep2", function(){
+      // click event of skipQuestionFilterStep2-button is nested in a document click event listener since this buttons is created dynamically when a worker had too many attmpts
+      // worker had too many wrong attempts and pressed the skip button
+
+      addCurrentAnnotationsTo_filterStep2_tried_parts();
+
+      // scroll to the top of the page to make sure that worker sees the displayed hint
+      window.scrollTo(0, 0);
+      // mark this question as correct
+      markFilterStep2AsCorrect("skippedPreviousQuestion");
+      // clear current worker annotation
+      clearCurrentFilterStep2Selection();
+      // and continue to the next question
+      // jump to first paragraph of annotation page. If filter (Step 2) is not passed, user will automatically land on filter (Step 2) page again but with next example.
+      jumpToPage(0);
+
+      updateWorkerData();
+    });
+
+
+    function checkIfAnswerIsCorrect(worker_answer, solution) {
+      // check if the workers answer for the currently displayed filter Step 2 question is correct
+      if (solution.length != worker_answer.length) {
+        // worker did not do correct amount of annotations, therefore return false immediately
+        return false;
+      }
+      else {
+        // worker did the correct amount of annotations, check if these annotations are also correct
+        var answerIsCorrect = true;
+        for (let i = 0; i < worker_answer.length; i++) {
+          // loop trough all worker annotations
+          var thisWorkerAnswerExistsInSolution = false;
+          for (let j = 0; j < solution.length; j++) {
+            // loop trough all solutions
+            if (checkIfTwoArraysAreEqual(worker_answer[i], solution[j])) {
+              thisWorkerAnswerExistsInSolution = true;
+              continue;
+            }
+          }
+
+          if (!thisWorkerAnswerExistsInSolution) {
+            // this worker answer does not exist in solution
+            return false;
+          }
+
+        }
+
+        // we looped trough all worker answers and they all existed in the solution, so the worker's annotation is correct
+        return true;
+      }
+    }
+
+    function checkIfTwoArraysAreEqual(a, b) {
+      if (a === b) return true;
+      if (a == null || b == null) return false;
+      if (a.length !== b.length) return false;
+
+      // If you don't care about the order of the elements inside
+      // the array, you should sort both arrays here.
+      // Please note that calling sort on an array will modify that array.
+      // you might want to clone your array first.
+
+      for (var i = 0; i < a.length; ++i) {
+        if (a[i] !== b[i]) return false;
+      }
+      return true;
+    }
+
+    function getThisQuestionsNrOfWrongAttempts() {
+      return window.filterData_step2['tried_parts'][current_filter_question_id]['nr_of_tries'];
+    }
+
+    function showCorrectSolution(current_filter_question_id) {
+      // worker has tried to annotate something and has already 10 or more attempts, therefore, show the worker the correct solution
+
+      // set 'solution_revealed' to true for this question
+      window.filterData_step2['tried_parts'][current_filter_question_id]['solution_revealed'] = true;
+    
+      var nr_of_attempts = getThisQuestionsNrOfWrongAttempts();
+      switch (current_filter_question_id) {
+        case "1":
+          var correct_solution = `In the text given below, the part <span style="color:#212529;font-size: larger;font-size: larger;">an artificial user should be able to conclude if the tool is running normally , if it has finished successfully or if it has failed</span> should be annotated as <span style="color:#212529;font-size: larger;">Own Claim</span>.`;
+          break;
+        case "2":
+          var correct_solution = `In the text given below, the part <span style="color:#212529;font-size: larger;"> The simulation and animation of the brain is a difficult task for different reasons </span> should be annotated as <span style="color:#212529;font-size: larger;">Background Claim</span>.`;
+          break;
+        case "3":
+          var correct_solution = `In the text given below, the part <span style="color:#212529;font-size: larger;"> 4 </span> should be annotated as <span style="color:#212529;font-size: larger;">Data</span>.`;
+          break;
+        case "4":
+          var correct_solution = `In the text given below, nothing should be annotated as the authors are just describing their implementation.`;
+          break;
+        case "5":
+          var correct_solution = `In the text given below, the part <span style="color:#212529;font-size: larger;"> Skeleton Superspace Formation ( SSD ) is the approach which is currently used the most for various skinning tasks </span> should be annotated as <span style="color:#212529;font-size: larger;">Background Claim</span>.`;
+          break;
+        case "6":
+          var correct_solution = `In the text given below, nothing should be annotated as the authors are just describing their implementation.`;
+          break;
+        case "7":
+          var correct_solution = `In the text given below, ... <ul>
+            <li>... the part <span style="color:#212529;font-size: larger;"> slightly different forms </span> should be annotated as <span style="color:#212529;font-size: larger;">Data</span>.</li>
+            <li>... the part <span style="color:#212529;font-size: larger;"> our frameworks create the same results </span> should be annotated as <span style="color:#212529;font-size: larger;">Own Claim</span>.</li>
+            <li>... the part <span style="color:#212529;font-size: larger;"> third column of table 3 </span> should be annotated as <span style="color:#212529;font-size: larger;">Data</span>.</li></ul>`;
+            break;
+        case "8":
+          var correct_solution = `In the text given below, ... <ul>
+            <li>... the part <span style="color:#212529;font-size: larger;"> a run goes wrong </span> should be annotated as <span style="color:#212529;font-size: larger;">Data</span>.</li>
+            <li>... the part <span style="color:#212529;font-size: larger;"> a production can’t afford major fixes </span> should be annotated as <span style="color:#212529;font-size: larger;">Background Claim</span>.</li>
+            <li>... the part <span style="color:#212529;font-size: larger;"> redesigning the framework </span> should be annotated as <span style="color:#212529;font-size: larger;">Data</span>.</li>
+            <li>... the part <span style="color:#212529;font-size: larger;"> re-scaling the framework’s surroundings </span> should be annotated as <span style="color:#212529;font-size: larger;">Data</span>.</li></ul>`;
+          break;
+        case "9":
+          var correct_solution = `In the text given below, ... <ul>
+            <li>... the part <span style="color:#212529;font-size: larger;"> following chapter </span> should be annotated as <span style="color:#212529;font-size: larger;">Data</span>.</li>
+            <li>... the part <span style="color:#212529;font-size: larger;"> our BCB runs on a circular arm and not on a segment </span> should be annotated as <span style="color:#212529;font-size: larger;">Own Claim</span>.</li>
+            <li>... the part <span style="color:#212529;font-size: larger;"> Figure 2 </span> should be annotated as <span style="color:#212529;font-size: larger;">Data</span>.</li></ul>`;
+            break;
+      }
+
+      let alert_message = `
+        <div id="alert-danger-showsolution" class="alert alert-danger alert-dismissible" role="alert" style="display: none;">
+          <h6 style="color:red;"><strong>Wrong annotation(s)! Too many (${nr_of_attempts}) attempts.</strong></h6>
+          <strong>For this reason, we provide the correct solution here:</strong>
+          <br>
+          ${correct_solution}
+          <hr>
+          You can either annotate the given text and then continue to the next question by clicking the Check button, or skip this question to directly continue with the next one by clicking this button:
+          <button id="skipQuestionFilterStep2" class="btn btn-success skipbutton">SKIP</button>
+
+          <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        `
+        // prepend alert to filter-alerts DIV to make sure that the alert is showed at the top of the page
+        $('#filter-alerts').prepend(alert_message);
+        $('#alert-danger-showsolution').toggle("slide:right");
+      
+
+    }
+
+    function showFilterStep2Hint(solution) {
+
+      // depending on which example the worker is currently trying to answer, we give different hints
+
+      switch (current_filter_question_id) {
+        case "1":
+        case "2":
+        case "3":
+          // give hints depending on how many annotations the worker made and how many attempts he already had
+          if (window.filterData_step2['tried_parts'][current_filter_question_id]['nr_of_tries'] > 2 && window.filterData_step2['tried_parts'][current_filter_question_id]['nr_of_tries'] <= 4 && window.filterData_step2.currentAnnotation.length == 0) {hint_noAnnotationYet();}
+          else if (window.filterData_step2['tried_parts'][current_filter_question_id]['nr_of_tries'] > 6 && window.filterData_step2.currentAnnotation.length == 1) {hint_annotationNotCorrectButTypeCorrect();}
+          else if (window.filterData_step2['tried_parts'][current_filter_question_id]['nr_of_tries'] > 6 && window.filterData_step2.currentAnnotation.length > 0) {hint_final_exactNumberAndTypeOfAnnotations();}
+          else if (window.filterData_step2['tried_parts'][current_filter_question_id]['nr_of_tries'] > 4 && window.filterData_step2.currentAnnotation.length == 1) {hint_annotationNotCorrect();}
+          else if (window.filterData_step2['tried_parts'][current_filter_question_id]['nr_of_tries'] > 4 && window.filterData_step2.currentAnnotation.length == 0) {hint_exactNrOfAnnotations();}
+          else if (window.filterData_step2['tried_parts'][current_filter_question_id]['nr_of_tries'] > 2 && window.filterData_step2.currentAnnotation.length > 1) {hint_tooManyAnnotations();}
+          break;
+        case "4":
+        case "6":
+          // these are the two questions for which the correct answer is not to annotate anything
+          if (window.filterData_step2['tried_parts'][current_filter_question_id]['nr_of_tries'] > 6) {hint_noAnnotation_Reminder_Final();}
+          else if (window.filterData_step2['tried_parts'][current_filter_question_id]['nr_of_tries'] > 3) {hint_noAnnotation_Reminder();}
+          break;
+        case "5":
+        case "7":
+        case "8":
+        case "9":
+          if (window.filterData_step2['tried_parts'][current_filter_question_id]['nr_of_tries'] > 2 && window.filterData_step2['tried_parts'][current_filter_question_id]['nr_of_tries'] <= 4 && window.filterData_step2.currentAnnotation.length == 0) {hint_noAnnotationYet_difficultQuestions();}
+          else if (window.filterData_step2['tried_parts'][current_filter_question_id]['nr_of_tries'] > 8 && window.filterData_step2.currentAnnotation.length == solution.length) {hint_annotationNotCorrectButTypeCorrect_difficultQuestions();}
+          else if (window.filterData_step2['tried_parts'][current_filter_question_id]['nr_of_tries'] > 8 && window.filterData_step2.currentAnnotation.length > 0) {hint_final_exactNumberAndTypeOfAnnotations_difficultQuestions();}
+          else if (window.filterData_step2['tried_parts'][current_filter_question_id]['nr_of_tries'] > 6 && window.filterData_step2.currentAnnotation.length > 0) {hint_exactNumberAndTypeOfAnnotations_difficultQuestions();}
+          else if (window.filterData_step2['tried_parts'][current_filter_question_id]['nr_of_tries'] > 4 && window.filterData_step2.currentAnnotation.length > 0) {hint_exactNrOfAnnotations_difficultQuestions();}
+          else if (window.filterData_step2['tried_parts'][current_filter_question_id]['nr_of_tries'] > 4 && window.filterData_step2.currentAnnotation.length == 0) {hint_noAnnotationYet_exactNrOfAnnotations_difficultQuestions();}
+          else if (window.filterData_step2['tried_parts'][current_filter_question_id]['nr_of_tries'] > 2 && window.filterData_step2.currentAnnotation.length > solution.length) {hint_tooManyAnnotations_difficultQuestions();}
+          break;
+      }
+
+    }
+
+    function alert_wrongAnnotation() {
+      // give the worker a hint, telling him that the answer is wrong
+      let alert_message = `
+        <div id="alert-danger-hint_wrongAnnotation" class="alert alert-danger alert-dismissible fade show" role="alert" style="display: none;">
+          <strong>Wrong annotation(s)!</strong> Please take a look at the instructions again and then try to correctly annotate the given text.
+          <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        `
+      // prepend alert to filter-alerts DIV to make sure that the alert is showed at the top of the page
+      $('#filter-alerts').prepend(alert_message);
+      $('#alert-danger-hint_wrongAnnotation').toggle("slide:right");
+    }
+
+    function hint_noAnnotationYet() {
+      // give the worker a hint, telling him that there is no annotation yet
+
+      let alert_message = `
+      <div id="alert-warning-hint_noAnnotationYet" class="alert alert-warning alert-dismissible" role="alert" style="display: none;">
+        <strong>Hint: No annotation yet!</strong>
+        <br>
+        Please try to correctly annotate the given text and then check your annotation by clicking the Check button.
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      `
+      // prepend alert to filter-alerts DIV to make sure that the alert is showed at the top of the page
+      $('#filter-alerts').prepend(alert_message);
+      $('#alert-warning-hint_noAnnotationYet').toggle("slide:right");
+    }
+
+    function hint_noAnnotationYet_difficultQuestions() {
+      // give the worker a hint, telling him that there is no annotation yet
+
+      let alert_message = `
+      <div id="alert-warning-hint_noAnnotationYet" class="alert alert-warning alert-dismissible" role="alert" style="display: none;">
+        <strong>No annotation yet!</strong>
+        <br>
+        <strong>Hint:</strong> There are more that zero argument components to be annotated in the text below.
+        <br>
+        Please try to correctly annotate the given text and then check your annotation by clicking the Check button.
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      `
+      // prepend alert to filter-alerts DIV to make sure that the alert is showed at the top of the page
+      $('#filter-alerts').prepend(alert_message);
+      $('#alert-warning-hint_noAnnotationYet').toggle("slide:right");
+    }
+
+    function hint_exactNrOfAnnotations() {
+      // give the worker a hint, telling him that there is no annotation yet and that there should be exactly one
+
+      let alert_message = `
+      <div id="alert-warning-hint_exactNrOfAnnotations" class="alert alert-warning alert-dismissible" role="alert" style="display: none;">
+        <strong>No annotation yet!</strong>
+        <br>
+        <strong>Hint:</strong> In the text given below there is <b>exactly one argument component</b> to be annotated.
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      `
+      // prepend alert to filter-alerts DIV to make sure that the alert is showed at the top of the page
+      $('#filter-alerts').prepend(alert_message);
+      $('#alert-warning-hint_exactNrOfAnnotations').toggle("slide:right");
+    }
+
+    function hint_exactNrOfAnnotations_difficultQuestions() {
+      // give the worker a hint, telling him that there is no annotation yet and that there should be exactly one
+
+      switch (current_filter_question_id) {
+        case "5":
+          var nr_of_components = "is <b>exactly 1 argument component</b>";
+          break;
+        case "7":
+          var nr_of_components = "are <b>exactly 3 argument components</b>";
+          break;
+        case "8":
+          var nr_of_components = "are <b>exactly 4 argument components</b>";
+          break;
+        case "9":
+          var nr_of_components = "are <b>exactly 3 argument components</b>";
+          break;
+      }
+
+      let alert_message = `
+      <div id="alert-warning-hint_exactNrOfAnnotations_difficultQuestions" class="alert alert-warning alert-dismissible" role="alert" style="display: none;">
+        <strong>Hint:</strong> In the text given below there ${nr_of_components} to be annotated.
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      `
+      // prepend alert to filter-alerts DIV to make sure that the alert is showed at the top of the page
+      $('#filter-alerts').prepend(alert_message);
+      $('#alert-warning-hint_exactNrOfAnnotations_difficultQuestions').toggle("slide:right");
+    }
+
+    function hint_noAnnotationYet_exactNrOfAnnotations_difficultQuestions() {
+      // give the worker a hint, telling him that there is no annotation yet and that there should be exactly one
+
+      switch (current_filter_question_id) {
+        case "5":
+          var nr_of_components = "is <b>exactly 1 argument component</b>";
+          break;
+        case "7":
+          var nr_of_components = "are <b>exactly 3 argument components</b>";
+          break;
+        case "8":
+          var nr_of_components = "are <b>exactly 4 argument components</b>";
+          break;
+        case "9":
+          var nr_of_components = "are <b>exactly 3 argument components</b>";
+          break;
+      }
+
+      let alert_message = `
+      <div id="alert-warning-hint_noAnnotationYet_exactNrOfAnnotations_difficultQuestions" class="alert alert-warning alert-dismissible" role="alert" style="display: none;">
+        <strong>No annotation yet!</strong>
+        <br>
+        <strong>Hint:</strong> In the text given below there ${nr_of_components} to be annotated.
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      `
+      // prepend alert to filter-alerts DIV to make sure that the alert is showed at the top of the page
+      $('#filter-alerts').prepend(alert_message);
+      $('#alert-warning-hint_noAnnotationYet_exactNrOfAnnotations_difficultQuestions').toggle("slide:right");
+    }
+
+    function hint_tooManyAnnotations() {
+      // give the worker a hint, telling him that there are too many annotationy
+
+      let alert_message = `
+      <div id="alert-warning-hint_tooManyAnnotations" class="alert alert-warning alert-dismissible" role="alert" style="display: none;">
+        <strong>Too many annotations!</strong>
+        <br>
+        <strong>Hint:</strong> In the text given below there is only <b>one argument component</b> to be annotated.
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      `
+      // prepend alert to filter-alerts DIV to make sure that the alert is showed at the top of the page
+      $('#filter-alerts').prepend(alert_message);
+      $('#alert-warning-hint_tooManyAnnotations').toggle("slide:right");
+    }
+
+    function hint_tooManyAnnotations_difficultQuestions() {
+      // give the worker a hint, telling him that there are too many annotationy
+
+      let alert_message = `
+      <div id="alert-warning-hint_tooManyAnnotations_difficultQuestions" class="alert alert-warning alert-dismissible" role="alert" style="display: none;">
+        <strong>Too many annotations!</strong>
+        <br>
+        <strong>Hint:</strong> In the text given below there are argument component(s) to be annotated but not so many.
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      `
+      // prepend alert to filter-alerts DIV to make sure that the alert is showed at the top of the page
+      $('#filter-alerts').prepend(alert_message);
+      $('#alert-warning-hint_tooManyAnnotations_difficultQuestions').toggle("slide:right");
+    }
+
+    function hint_annotationNotCorrect() {
+      // give the worker a hint, telling him that the annotation is not correct
+
+      let alert_message = `
+      <div id="alert-warning-hint_annotationNotCorrect" class="alert alert-warning alert-dismissible" role="alert" style="display: none;">
+        <strong>Wrong annotation!</strong>
+        <br>
+        <strong>Hint:</strong> You were right to annotate exactly one argument component. However, the annotation needs to have the correct type and needs to include the correct words.
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      `
+      // prepend alert to filter-alerts DIV to make sure that the alert is showed at the top of the page
+      $('#filter-alerts').prepend(alert_message);
+      $('#alert-warning-hint_annotationNotCorrect').toggle("slide:right");
+    }
+
+    function hint_annotationNotCorrectButTypeCorrect() {
+      // give the worker a hint, telling him that the annotation is not correct
+
+      switch (current_filter_question_id) {
+        case "1":
+          var searched_annotation_type = "Own Claim";
+          break;
+        case "2":
+          var searched_annotation_type = "Background Claim";
+          break;
+        case "3":
+          var searched_annotation_type = "Data";
+          break;
+      }
+
+      let alert_message = `
+      <div id="alert-warning-hint_annotationNotCorrectButTypeCorrect" class="alert alert-warning alert-dismissible" role="alert" style="display: none;">
+        <strong>Wrong annotation!</strong>
+        <br>
+        <strong>Hint:</strong> You were right to annotate exactly one argument component of type '${searched_annotation_type}'. However, the annotation also needs to include the correct words. Therefore, please think again about the correct boundaries of this argument component of type '${searched_annotation_type}'.
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      `
+      // prepend alert to filter-alerts DIV to make sure that the alert is showed at the top of the page
+      $('#filter-alerts').prepend(alert_message);
+      $('#alert-warning-hint_annotationNotCorrectButTypeCorrect').toggle("slide:right");
+    }
+
+    function hint_annotationNotCorrectButTypeCorrect_difficultQuestions() {
+      // give the worker a hint, telling him that the annotation is not correct
+
+      switch (current_filter_question_id) {
+        case "5":
+          var nr_and_types_of_components = "is <b>exactly 1 argument component of type 'Background Claim'</b>";
+          var nr_of_components = "1 argument component";
+          break;
+        case "7":
+          var nr_and_types_of_components = "are <b>exactly 2 argument components of type 'Data' and 1 argument component of type 'Own Claim'</b>";
+          var nr_of_components = "3 argument components";
+          break;
+        case "8":
+        var nr_and_types_of_components = "are <b>exactly 3 argument components of type 'Data' and 1 argument component of type 'Background Claim'</b>";
+        var nr_of_components = "4 argument components";
+          break;
+        case "9":
+        var nr_and_types_of_components = "are <b>exactly 2 argument components of type 'Data' and 1 argument component of type 'Own Claim'</b>";
+        var nr_of_components = "3 argument components";
+          break;
+      }
+      
+      let alert_message = `
+      <div id="alert-warning-hint_annotationNotCorrectButTypeCorrect_difficultQuestions" class="alert alert-warning alert-dismissible" role="alert" style="display: none;">
+        <strong>Wrong annotation!</strong>
+        <br>
+        <strong>Hint:</strong> You were right to annotate exactly ${nr_of_components}. However, the annotations also need to be of the correct type and they also need to include the correct words. Therefore, please think again about the correct boundaries and types of these ${nr_of_components}.
+        <br>
+        <strong>Another Hint:</strong> In the text given below there ${nr_and_types_of_components} to be annotated.
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      `
+      // prepend alert to filter-alerts DIV to make sure that the alert is showed at the top of the page
+      $('#filter-alerts').prepend(alert_message);
+      $('#alert-warning-hint_annotationNotCorrectButTypeCorrect_difficultQuestions').toggle("slide:right");
+    }
+
+    function hint_final_exactNumberAndTypeOfAnnotations() {
+      // give the worker a hint, telling him the exact number and type of annotations
+      
+      switch (current_filter_question_id) {
+        case "1":
+          var searched_annotation_type = "Own Claim";
+          break;
+        case "2":
+          var searched_annotation_type = "Background Claim";
+          break;
+        case "3":
+          var searched_annotation_type = "Data";
+          break;
+      }
+      
+      let alert_message = `
+      <div id="alert-warning-hint_final_exactNumberAndTypeOfAnnotations" class="alert alert-warning alert-dismissible" role="alert" style="display: none;">
+        <strong>Wrong annotation!</strong>
+        <br>
+        <strong>Hint:</strong> The text given below contains exactly 1 argument component of type '${searched_annotation_type}'.
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      `
+      // prepend alert to filter-alerts DIV to make sure that the alert is showed at the top of the page
+      $('#filter-alerts').prepend(alert_message);
+      $('#alert-warning-hint_final_exactNumberAndTypeOfAnnotations').toggle("slide:right");
+    }
+
+    function hint_final_exactNumberAndTypeOfAnnotations_difficultQuestions() {
+      // give the worker a hint, telling him the exact number and type of annotations
+      
+      switch (current_filter_question_id) {
+        case "5":
+          var nr_and_types_of_components = "is <b>exactly 1 argument component of type 'Background Claim'</b>";
+          break;
+        case "7":
+          var nr_and_types_of_components = "are <b>exactly 2 argument components of type 'Data' and 1 argument component of type 'Own Claim'</b>";
+          break;
+        case "8":
+        var nr_and_types_of_components = "are <b>exactly 3 argument components of type 'Data' and 1 argument component of type 'Background Claim'</b>";
+          break;
+        case "9":
+        var nr_and_types_of_components = "are <b>exactly 2 argument components of type 'Data' and 1 argument component of type 'Own Claim'</b>";
+          break;
+      }
+      
+      let alert_message = `
+      <div id="alert-warning-hint_final_exactNumberAndTypeOfAnnotations_difficultQuestions" class="alert alert-warning alert-dismissible" role="alert" style="display: none;">
+        <strong>Wrong annotation(s)!</strong>
+        <br>
+        <strong>Hint:</strong> In the text given below there ${nr_and_types_of_components} to be annotated.
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      `
+      // prepend alert to filter-alerts DIV to make sure that the alert is showed at the top of the page
+      $('#filter-alerts').prepend(alert_message);
+      $('#alert-warning-hint_final_exactNumberAndTypeOfAnnotations_difficultQuestions').toggle("slide:right");
+    }
+
+    function hint_exactNumberAndTypeOfAnnotations_difficultQuestions() {
+      // give the worker a hint, telling him the exact number and type of annotations
+      
+      switch (current_filter_question_id) {
+        case "5":
+          var nr_of_components = "is <b>exactly 1 argument component</b>";
+          var types_of_components = "'Background Claim'";
+          break;
+        case "7":
+          var nr_of_components = "are <b>exactly 3 argument components</b>";
+          var types_of_components = "'Own Claim' and 'Data'";
+          break;
+        case "8":
+          var nr_of_components = "are <b>exactly 4 argument components</b>";
+          var types_of_components = "'Background Claim' and 'Data'";
+          break;
+        case "9":
+          var nr_of_components = "are <b>exactly 3 argument components</b>";
+          var types_of_components = "'Own Claim' and 'Data'";
+          break;
+      }
+      
+      let alert_message = `
+      <div id="alert-warning-hint_exactNumberAndTypeOfAnnotations_difficultQuestions" class="alert alert-warning alert-dismissible" role="alert" style="display: none;">
+        <strong>Wrong annotation!</strong>
+        <br>
+        <strong>Hints:
+        <br>
+        </strong>The text given below contains ${nr_of_components}.
+        <br>
+        Further, the following types of argument components exist in the text below: ${types_of_components}.
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      `
+      // prepend alert to filter-alerts DIV to make sure that the alert is showed at the top of the page
+      $('#filter-alerts').prepend(alert_message);
+      $('#alert-warning-hint_exactNumberAndTypeOfAnnotations_difficultQuestions').toggle("slide:right");
+    }
+
+    function hint_noAnnotation_Reminder() {
+      
+      let alert_message = `
+      <div id="alert-warning-hint_noAnnotation_Reminder" class="alert alert-warning alert-dismissible" role="alert" style="display: none;">
+        <strong>Wrong annotation!</strong>
+        <br>
+        <strong>Hint:</strong> <b>Zero</b>, <b>one</b>, or <b>more than one</b> argument components are possible.
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      `
+      // prepend alert to filter-alerts DIV to make sure that the alert is showed at the top of the page
+      $('#filter-alerts').prepend(alert_message);
+      $('#alert-warning-hint_noAnnotation_Reminder').toggle("slide:right");
+    }
+
+    function hint_noAnnotation_Reminder_Final() {
+      
+      let alert_message = `
+      <div id="alert-warning-hint_noAnnotation_Reminder_Final" class="alert alert-warning alert-dismissible" role="alert" style="display: none;">
+        <strong>Wrong annotation!</strong>
+        <br>
+        <strong>Hints:</strong>
+        <ul style="margin-bottom:0;">
+        <li><b>Zero</b>, <b>one</b>, or <b>more than one</b> argument components are possible.</li>  
+        <li>For each part of the text given below, decide if it is argumentative or not. Only if it is argumentative, annotate it with the corresponding button (<i>Data</i>, <i>Background Claim</i>, or <i>Own Claim</i>).</li>  
+        </ul>
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      `
+      // prepend alert to filter-alerts DIV to make sure that the alert is showed at the top of the page
+      $('#filter-alerts').prepend(alert_message);
+      $('#alert-warning-hint_noAnnotation_Reminder_Final').toggle("slide:right");
+    }
+
+
+    function addCurrentAnnotationsTo_filterStep2_tried_parts() {
+      // add the current annotation to the tried parts to be able to keep track of the different attempts made by this worker
+
+      // check if object already exists for this filter part
+      if (!Object.keys(window.filterData_step2['tried_parts']).includes(current_filter_question_id)) {
+        // if it does not exist yet, initialize it
+        window.filterData_step2['tried_parts'][current_filter_question_id] = {'nr_of_tries': 0, 'annotations': [], 'solution_revealed': false};
+      }
+
+      let current_nr_of_tries = window.filterData_step2['tried_parts'][current_filter_question_id]['nr_of_tries'];
+      window.filterData_step2['tried_parts'][current_filter_question_id]['nr_of_tries'] = current_nr_of_tries + 1;
+      window.filterData_step2['tried_parts'][current_filter_question_id]['annotations'].push(window.filterData_step2.currentAnnotation);
+
+    }
+
+    function markFilterStep2AsCorrect(solution) {
+
+      // add name of current filter (Step 2) question to the array which contains all passed filter (Step 2) questions
+      window.filterData_step2.passed_parts.push(current_filter_question_id);
+
+      // remove all currently visible alerts
+      closeAllAlerts();
+
+      // show alert informing user that this annotation was correct
+      let filter_parts_total = (Object.keys({{filter_questions_step2|tojson}}));
+      let filter_parts_passed = window.filterData_step2.passed_parts;
+      let all_filter_parts_passed = checkIfAllQuestionsOfFilterStep2HaveBeenPassed(filter_parts_total, filter_parts_passed);
+      if (!all_filter_parts_passed) {
+        //if (filter_parts_passed.length < 1) { 
+        // not all parts of filter (Step 2) have been passed yet
+        if (solution == "skippedPreviousQuestion") {
+          var message_header = `Question skipped!`;
+        }
+        else if (solution.length == 0) {
+          var message_header = `Good Job! Correct, nothing has to be annotated here!`;
+        }
+        else if (solution.length == 1) {
+          var message_header = `Good Job! Argument component annotated correctly!`;
+        }
+        else {
+          var message_header = `Good Job! Argument components annotated correctly!`;
+        }
+        let alert_message = `
+        <div id="alert-success-annotationcorrect" class="alert alert-success alert-dismissible fade show" role="alert" style="display: none;">
+          <h6>${message_header}</h6>
+          Please continue with the question which is displayed below.<br>
+          <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        `
+        // prepend alert to filter-alerts DIV to make sure that the alert is showed at the top of the page
+        $('#filter-alerts').prepend(alert_message);
+        $('#alert-success-annotationcorrect').toggle("slide:right");
+      }
+      else {
+        // all parts of filter (Step 2) have been passed!
+        window.filterData_step2.filterPassed = true;
+        
+        // then show alert saying that worker passed the filter (Step 2) and can now start with the real task
+        let alert_message = `
+        <div id="alert-success-filterpassed" class="alert alert-success alert-dismissible fade show" role="alert" style="display: none;">
+          <h5 class="alert-heading">Awesome!</h5>
+          Good work, you answered all questions correctly.
+          <br>
+          Thank you very much for finishing the Pop Quiz. Now you're ready for the real task. :) Please start with the annotation of the three paragraphs.
+          <br>
+          Keep up the good work and also keep in mind that the more components you identify correctly, the higher your bonus payment will be.
+          For good answers we will pay a bonus of <b>$3,20</b> which means that you can make up to <b>$8</b> with this task.
+          <hr>
+          Whenever you need to, you can go back to the instructions or click the <svg width="1em" height="1em"
+            viewBox="0 0 16 16" class="bi bi-info-circle" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+            <path fill-rule="evenodd" d="M8 15A7 7 0 1 0 8 1a7 7 0 0 0 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z" />
+            <path
+              d="M8.93 6.588l-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588z" />
+            <circle cx="8" cy="4.5" r="1" /></svg> buttons to look at some examples.
+
+          <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        `
+        // prepend alert to filter-alerts DIV to make sure that the alert is showed at the top of the page
+        $('#filter-alerts').prepend(alert_message);
+        $('#alert-success-filterpassed').toggle("slide:right");
+      }
+
+    }
+
+    function checkIfAllQuestionsOfFilterStep2HaveBeenPassed(filter_parts_total, filter_parts_passed) {
+      if (filter_parts_passed.length < filter_parts_total.length) {
+        // less questions have been passed than the number of existing questions, therefore return false
+        return false;
+      }
+      // check if really every existing question id is contained in the list filter_parts_passed.
+      // This is to make sure that even if there is e.g. an empty element in the list filter_parts_passed (even though this should not be the case), the filter Step to is not marked as passed to early.
+      var all_parts_passed = filter_parts_total.every((el) => {
+        return filter_parts_passed.indexOf(el) !== -1;
+      });
+      // all_parts_passed is true if filter_parts_total is a subset of filter_parts_passed
+      return all_parts_passed;
+    }
+    
+    function clearCurrentFilterStep2Selection() {
+      // clear the current annotation to make sure that worker has to do a new annotation before he can check again
+      window.filterData_step2.currentAnnotation = [];
+    }
+
+    function isTotalNumberOfWrongAttemptsReached() {
+
+      // define how many WRONG attempts a worker can make
+      var maxAllowedNumberOfWrongAttemptsToPassFilter = {{ability_filter_threshold|tojson}};
+      var totalNumberOfWrongAttempts = 0;
+      // loop trough each filter (Step 2) question and add the nr_of_tries to the totalNumberOfAttempts
+      $.each(window.filterData_step2['tried_parts'], function(index, value) {
+        totalNumberOfWrongAttempts += value['nr_of_tries'];
+      });
+      //decrease totalNumberOfWrongAttempts by the amount of filters that have been passed to make sure that correct attempts are not counted as wrong attempts
+      totalNumberOfWrongAttempts = totalNumberOfWrongAttempts - window.filterData_step2.passed_parts.length;
+
+      if (totalNumberOfWrongAttempts > maxAllowedNumberOfWrongAttemptsToPassFilter) {
+        return true;
+      }
+      else {
+        // the annotation is wrong but the worker did not reach to max amount of attempts
+        return false;
+      }
+    }
+      
+
+    // WHEN CLOSE CLICK HIDE THE ALERT MESSAGE.
+    $(".alert").on("click", function() {
+      // if user clicks on x in top right corner of an alert, close this alert
+      $(this).css("display", "none");
+    })
+
+    function closeAllAlerts() {
+      // close all the open filter (Step 2) page alerts
+      $('#filter-alerts').empty();
+    }
+
+
+    
+    function getNewParagraphNumber(direction) {
+      if (direction == 0) {
+        window.paragraphNumber -= 1;
+      }
+      else if (direction == 1) {
+        window.paragraphNumber += 1;
+      }
+      else if (direction = -1) {
+        window.paragraphNumber = 0;
+      }
+      
+      return window.paragraphNumber;
+    };
+
+    function updateWorkerData() {
+      updateMTurkForm();
+      setAllLocalStorageElements();
+    }
+
+    function updateMTurkForm() {
+      // set the values of the form inputs so that the data is saved in mturk when user submits the assignment
+      $("#submit_annotations").val(JSON.stringify(window.annotations));
+      $("#submit_filter_data_step2").val(JSON.stringify(window.filterData_step2));
+      $("#submit_worker_assignment_data").val(JSON.stringify({{worker_assignment_data|tojson}}));
+      $("#submit_logger").val(window.logger);
+    }
+
+    function setAllLocalStorageElements() {
+
+      setLocalStorageElement("lastVisitedPage", (window.paragraphNumber).toString());
+      setLocalStorageElement("informedConsentCheckBox", ($("#informedConsentCheckBox").is(':checked')).toString());
+      setLocalStorageElement("filterData_step2", JSON.stringify(window.filterData_step2));
+      setLocalStorageElement("annotations", JSON.stringify(window.annotations));
+      setLocalStorageElement("feedback", $("textarea[name='feedback']").val());
+      setLocalStorageElement("logger", window.logger);
+      setLocalStorageElement("timestamp", Date.now());
+      
+    }
+
+    function loadAllLocalStorageElements() {
+
+      if (getLocalStorageElement("lastVisitedPage") === null) {
+        window.paragraphNumber = -1;
+      }
+      else {
+        window.paragraphNumber = parseInt(getLocalStorageElement("lastVisitedPage"));
+      }
+
+      if (getLocalStorageElement("informedConsentCheckBox") === null) {
+        window.informedConsentCheckBox = false;
+      }
+      else {
+        window.informedConsentCheckBox = (getLocalStorageElement("informedConsentCheckBox") == 'true');
+      }
+
+      if (getLocalStorageElement("filterData_step2") === null) {
+        window.filterData_step2 = {'filterPassed': false, 'passed_parts': [], 'tried_parts': {}, 'currentAnnotation': []};
+      }
+      else {
+        window.filterData_step2 = JSON.parse(getLocalStorageElement("filterData_step2"));
+      }
+
+      if (getLocalStorageElement("annotations") === null) {
+        window.annotations = [];
+      }
+      else {
+        window.annotations = JSON.parse(getLocalStorageElement("annotations"));
+      }
+
+      if (getLocalStorageElement("feedback") === null) {
+        window.feedback = "";
+      }
+      else {
+        window.feedback = getLocalStorageElement("feedback");
+      }
+
+      if (getLocalStorageElement("logger") === null) {
+        window.logger = "";
+      }
+      else {
+        window.logger = getLocalStorageElement("logger");
+      }
+
+    }
+
+    
+    function setLocalStorageElement(name, value) {
+      // only set the local storage item if worker is not in preview mode and if browser supports local storage
+      let browserSupportsLocalStorage = (typeof(Storage) !== "undefined");
+      let workerNotInPreviewMode = ({{preview_mode}} != true);
+      if (browserSupportsLocalStorage && workerNotInPreviewMode) {
+        let assignment_id = {{worker_assignment_data|tojson}}.assignment_id;
+        let local_storage_element_name = assignment_id + name;
+
+        window.localStorage.setItem(local_storage_element_name, value.toString());
+      }
+    }
+
+
+    function getLocalStorageElement(name) {
+      let assignment_id = {{worker_assignment_data|tojson}}.assignment_id;
+      let local_storage_element_name = assignment_id + name;
+      return window.localStorage.getItem(local_storage_element_name);
+    }
+
+
+    function jumpToPage(pageNumber) {
+      // scroll to the top of the page
+      window.scrollTo(0, 0);
+      
+      let numberOfParagraphs = Object.keys(({{text_to_annotate|tojson}})).length;
+      let pageState = getPageState(pageNumber);
+
+      if (pageState == "instructionsPage") {
+        // jump to instructions page
+        // show instructions page and hide other divs
+        $("div#annotationButtons").addClass("hidden");
+        $("div#userControls").addClass("hidden");
+        $("div#textToAnnotate-wrapper").addClass("hidden");
+        $("div#navigationButtons").addClass("hidden");
+        $("div#progress").addClass("hidden");
+        $("div#filter-instructions").addClass("hidden");
+        $("div#filterButtonsStep2").addClass("hidden");
+        // scroll to the top
+        window.scrollTo(0, 0);
+        $("div#instructions").removeClass("hidden");
+
+        logger = logger.concat(Date.now(), "/Instructions page", "//");
+
+      }
+      else if (pageState == "finishPage") {
+        updateProgressBar(numberOfParagraphs-1, numberOfParagraphs);
+        // jump to finish page
+        // show finish page and hide other divs
+        $("div#progress").addClass("hidden"); 
+        $("div#annotationButtons").addClass("hidden");
+        $("div#userControls").addClass("hidden");
+        $("div#textToAnnotate-wrapper").addClass("hidden");
+        $("#navigationButtons").addClass("hidden");
+        $("div#filter-instructions").addClass("hidden");
+        $("div#filterButtonsStep2").addClass("hidden");
+        $("div#instructions").addClass("hidden");
+
+        // scroll to the top
+        window.scrollTo(0, 0);
+        $("div#feedback").removeClass("hidden");
+
+        logger = logger.concat(Date.now(), "/Finish page", "//");
+
+        // print data on heroku for safety reasons
+        printDataOnServer("on FINISH page - COMPONENT");
+
+      }
+      else {
+
+
+
+        //check if the filter (Step 2) has been passed already
+        if (window.filterData_step2.filterPassed === true) {
+          // ANNOTATION PAGE
+          // filter (Step 2) has been passed
+          $("div#filter-instructions").addClass("hidden");
+
+          //display annotation page with correct paragraph
+          displayTextToAnnotate(pageNumber, window.annotations);
+          updateProgressBar(pageNumber, numberOfParagraphs);
+          $("div#instructions").addClass("hidden");
+          $("div#feedback").addClass("hidden");
+          $("div#filterButtonsStep2").addClass("hidden");
+
+          $("div#progress").removeClass("hidden");
+          $("div#annotationButtons").removeClass("hidden");
+          $("div#userControls").removeClass("hidden");
+          $("div#textToAnnotate-wrapper").removeClass("hidden");
+          $("div#navigationButtons").removeClass("hidden");
+          $("#previousPageButton").html('&laquo; Instructions');
+
+          logger = logger.concat(Date.now(), "/Annotation page. p=", pageNumber, "//");
+
+          if (pageNumber == (numberOfParagraphs-1)) {
+            // change value of next button
+            $("#nextPageButton").html('Finish &raquo;');
+          }
+          else {
+            $("#nextPageButton").html('Next &raquo;');
+          }
+          if (pageNumber == 0) {
+            // change value of previous button
+            $("#previousPageButton").html('&laquo; Instructions');
+          }
+          else {
+            $("#previousPageButton").html('&laquo; Previous');
+          }
+
+        }
+        else {
+          // FILTER (Step 2) PAGE
+          // filter (Step 2) has not been passed yet, go to filter (Step 2) page
+
+          // in case something was annotated during the filter step 2, this annotations should be forgotten on a page refresh and also when user comes back from instructions.
+          clearCurrentFilterStep2Selection();
+
+          $("div#instructions").addClass("hidden");
+          $("div#feedback").addClass("hidden");
+          $("div#progress").addClass("hidden");
+          $("div#navigationButtons").addClass("hidden");
+
+          $("div#filterButtonsStep2").removeClass("hidden");
+          displayTextToAnnotateFILTERSTEP2();
+          $("div#filter-instructions").removeClass("hidden");
+          $("div#annotationButtons").removeClass("hidden");
+          $("div#userControls").removeClass("hidden");
+          $("div#textToAnnotate-wrapper").removeClass("hidden");
+          $("#previousPageButton").html('&laquo; Instructions');
+          
+          logger = logger.concat(Date.now(), "/Filter (Step 2) page. q=", current_filter_question_id, "//");
+          
+        }
+
+
+      }
+      // update the size of the annotationName and the edit icon. This is necessary if the size has been changed by the worker.
+      updateTextSize();
+    };
+
+
+    function updateProgressBar(newParagraphNumber, numberOfParagraphs) {
+      let newWidth = (((newParagraphNumber+1)/numberOfParagraphs) * 100) + '%';
+      let newText = '<b>' + (newParagraphNumber+1) + '/' + numberOfParagraphs + '</b>';
+      $("div#progress").removeClass("hidden");
+      $("div.progress-bar").css( "width", newWidth);
+      $("div.progress-bar").html(newText);
+    }
+
+
+  </script>
+</html>

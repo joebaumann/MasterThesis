@@ -1,0 +1,44 @@
+<!-- extend base layout -->
+{% extends "admin_area/base.html" %}
+
+{% block content %}
+<head>
+    <script type="text/javascript">
+        $("document").ready(function () {
+            toggleEnvironmentButton();
+        })
+
+
+        function toggleEnvironmentButton() {
+            // set the state of the environment button
+            console.log("environment:");
+            console.log({{environment|tojson}});
+            // first enable both buttons
+            $(".environment-button").removeClass("selected").prop('disabled', false);
+            // and then disable selected button
+            $("#" + {{environment|tojson}}).addClass("selected").prop('disabled', true);
+
+        }
+    </script>
+</head>
+<body>
+
+    <div class="container">
+        <div class="row justify-content-md-center">
+
+            <button type="button" class="btn btn-warning environment-button" id="sandbox" onclick="window.location.href='{{ url_for('admin_area_bp.get_account_balance', client_mturk_environment='sandbox') }}';">Sandbox</button>
+            <button type="button" class="btn btn-warning environment-button" id="production" onclick="window.location.href='{{ url_for('admin_area_bp.get_account_balance', client_mturk_environment='production') }}';">Production</button>
+        </div>
+
+        <div class="row justify-content-md-center">
+            <div>
+                <br>
+                <p class="lead"><samp>You are connected to the Amazon Mechanical Turk <mark>{{ environment }}</mark> environment!</samp></p>
+                <p class="lead"><samp>Your account balance is $ <mark>{{ account_balance }}</mark>.</samp></p>
+            </div>
+        </div>
+    </div>
+    
+</body>
+
+{% endblock %}

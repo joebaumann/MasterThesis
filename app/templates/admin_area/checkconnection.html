@@ -1,0 +1,109 @@
+<!-- extend base layout -->
+{% extends "admin_area/base.html" %}
+
+{% block content %}
+<head>
+    <script type="text/javascript">
+        $("document").ready(function () {
+            console.log("connection:");
+            console.log({{ connection|tojson }});
+
+            if ({{ connection|tojson }}) {
+                console.log("yes");
+                $("#connection-failed").addClass("hidden");
+                $("#connection-successful").removeClass("hidden");
+            }
+            else {
+                console.log("no");
+                $("#connection-successful").addClass("hidden");
+                $("#connection-failed").removeClass("hidden");
+            }
+
+            toggleEnvironmentButton();
+        })
+
+
+        function toggleEnvironmentButton() {
+            // set the state of the environment button
+            console.log("environment:");
+            console.log({{environment|tojson}});
+            // first enable both buttons
+            $(".environment-button").removeClass("selected").prop('disabled', false);
+            // and then disable selected button
+            $("#" + {{environment|tojson}}).addClass("selected").prop('disabled', true);
+
+        }
+    </script>
+</head>
+<body>
+
+    <div class="container">
+
+        <div class="row justify-content-md-center">
+            <button type="button" class="btn btn-warning environment-button" id="sandbox"
+                onclick="window.location.href='{{ url_for('admin_area_bp.checkconnection', client_mturk_environment='sandbox') }}';">Sandbox</button>
+            <button type="button" class="btn btn-warning environment-button" id="production"
+                onclick="window.location.href='{{ url_for('admin_area_bp.checkconnection', client_mturk_environment='production') }}';">Production</button>
+        </div>
+
+        <div class="row justify-content-center" style="margin-top: 3%;">
+        
+            {% with errors = get_flashed_messages(category_filter=["error"]) %}
+                {% if errors %}
+                    {%- for msg in errors %}
+                    <div class="alert alert-danger" role="alert">{{msg}}</div>
+                    {% endfor -%}
+                {% endif %}
+            {% endwith %}
+    
+            {% with infos = get_flashed_messages(category_filter=["info"]) %}
+                {% if infos %}
+                    {%- for msg in infos %}
+                    <div class="alert alert-warning" role="alert">{{msg}}</div>
+                    {% endfor -%}
+                {% endif %}
+            {% endwith %}
+    
+            {% with success = get_flashed_messages(category_filter=["success"]) %}
+                {% if success %}    
+                    {%- for msg in success %}
+                    <div class="alert alert-success" role="alert">{{msg}}</div>
+                    {% endfor -%}
+                {% endif %}
+            {% endwith %}
+        
+        </div>
+
+        <div class="row justify-content-md-center">
+            <div id="connection-successful" class="hidden">
+                <p>
+                    <i id="connection-successful-icon" class="fa fa-check-circle fa-5x" aria-hidden="true"></i>
+                </p>
+                <p class="lead"><samp>You are connected to the Amazon Mechanical Turk <mark>{{ environment }}</mark>
+                        environment!</samp></p>
+            </div>
+        </div>
+
+        <div class="row justify-content-md-center">
+            <div id="connection-failed" class="hidden">
+                <p>
+                    <i id="connection-failed-icon" class="fa fa-times-circle fa-5x" aria-hidden="true"></i>
+                </p>
+                <p class="lead"><samp>The connection to the Amazon Mechanical Turk <mark>{{ environment }}</mark>
+                        environment failed!</samp>
+                    <p>
+                        <samp>Please log in with your AWS credentials (<i>AWS_ACCESS_KEY</i>,
+                            <i>AWS_SECRET_ACCESS_KEY</i>) to access Amazon Mechanical Turk. You can find your
+                            credentials in Amazon's IAM Management Console. The following article explains how you can set up a user (in case you do not have one yet) and how you can access your credentials: <a style="color: white;" target="_blank" rel="noopener noreferrer" href="https://blog.mturk.com/tutorial-setting-up-your-aws-account-to-make-use-of-mturks-api-4e405b8fc8cb">Tutorial: Setting up your AWS Account to make use of MTurk’s API</a></samp>
+                    </p>
+
+                </p>
+                <button type="button" class="btn btn-success" id="production"
+                    onclick="window.location.href='{{ url_for('admin_area_bp.login_AWS') }}';">Go to AWS Login Page</button>
+            </div>
+        </div>
+
+    </div>
+</body>
+
+{% endblock %}

@@ -1,0 +1,2543 @@
+<!DOCTYPE html>
+<html style="border: 3px solid #5399b4;">
+
+<head>
+  <title>Crowd-powered argument annotation</title>
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <!-- Include bootstrap, jQuery, Popper -->
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <!-- <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script> -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js"></script>
+
+  <script src="https://kit.fontawesome.com/172b48191c.js" crossorigin="anonymous"></script>
+
+  <link rel="stylesheet" type= "text/css" href= "{{ url_for('static',filename='styles/relationannotation.css') }}">
+
+
+  
+  <script type="text/javascript">
+    
+    $("document").ready(function() {
+      $(document).ready(function(){
+        // enable tooltips
+        $('.tooltip-wrapper').tooltip({position: "bottom"});
+        // enable popovers
+        $('[data-toggle="popover"]').popover();
+      });
+
+      // set mturk form action so that when worker submits the hit the results data is sent to the correct mturk url
+      $("#mturk_form").attr("action", {{turkSubmitTo|tojson}});
+
+
+
+      loadAllLocalStorageElements();
+      
+      logger = logger.concat(Date.now(), "/Page loaded. Preview_mode=", {{ preview_mode }}, "//");
+
+      if (window.informedConsentCheckBox == true) {
+        $('#informedConsentCheckBox').prop('checked', true);
+      }
+      else {
+        $('#informedConsentCheckBox').prop('checked', false);
+      }
+
+
+      window.annotation_types = {{annotation_types|tojson}};
+      window.annotations = {{annotations|tojson}};
+
+
+      window.relation_types = {{relation_types|tojson}};
+
+
+      // set the worker's assignment id so that mturk can process it as soon as worker submits the assignment
+      $("#assignmentId").val({{worker_assignment_data|tojson}}.assignment_id);
+      // additionally, we can already set the annotations_on_load since they won't change anyway
+      $("#annotations_on_load").val(JSON.stringify({{annotations|tojson}}));
+
+      createAllAnnotationTypeCssClasses(annotation_types);
+      displayAllRelationTypeButtons(relation_types);
+
+
+      window.pressedRelationAnnotationButton = "";
+
+      
+      // set name and value of li element to name/value of child radio button. This makes it possible to check radio button if worker clicks on description
+      $( "#certaintyRadioButtons input" ).each(function( index ) {
+        let radio_value = $(this).attr("value");
+        $(this).parent().attr("value", radio_value);
+      });
+
+
+      // load already checked answers as sent by server
+      loadFeedback();
+
+      // check if this worker already passed the ability filter
+      var worker_id = {{worker_assignment_data|tojson}}.worker_id;
+
+      if (!({{worker_IDs_who_passed_step2|tojson}}.indexOf(worker_id) < 0)) {
+        // this worker already passed the filter
+        // set filter to passed to make sure that worker can directly start with annotation
+        window.filterData_step2.filterPassed = true;
+        // remove pop quiz info box from instructions
+        $("#importantInstructionInfoPopQuiz").addClass("hidden");
+      }
+      
+
+      if (isTotalNumberOfWrongAttemptsReached()) {
+        // the worker already did too many attempts, therefore filter (Step 2) is failed!
+        // hide previous button
+        $("#previousPageButton-feedback").addClass("hidden");
+        jumpToPage(getNumberOfFinishPage());
+      }
+      else {
+        // the worker did not use too many attempts, therefore go to page were the worker was last
+        jumpToPage(window.paragraphNumber);
+      }
+
+
+      $('#mturk_form').submit(function(event) {
+        event.preventDefault(); // this prevents the default submit
+        logger = logger.concat(Date.now(), "/Submit", "//");
+        updateMTurkForm();
+
+        // print data on heroku for safety reasons
+        printDataOnServer("SUBMIT RELATION");
+        
+
+        // clear all worker data in local storage when worker submits HIT
+        // loop through all elements of local storage to delete the ones which were created during this assignment.
+        // Further, check if any local storage elements are found which are older than one week. If yes, extract the assignment id of the outdated element and delete all local storage elements which contain this id.
+        // By that we make sure that a worker's local storage is kept clean and that the maximum size of a worker's local storage is not exceeded.
+        // This is needed since localstorage elements are initiated on page load (also in preview mode).
+        var locstor_keys = Object.keys(window.localStorage);
+        var assignment_id = {{worker_assignment_data|tojson}}.assignment_id;
+        $.each(locstor_keys, function(index, key) {
+          if (key.includes(assignment_id)) {
+            // The key of this element contains this assignment's id, therefore delete it.
+            window.localStorage.removeItem(key);
+          }
+          else if (key.includes("timestamp")) {
+            // this element was created during another assignment
+            // check whether the timestamp is more than one week old
+            let assignment_timestamp = parseInt(window.localStorage.getItem(key));
+            let time_since_creation_in_days = Math.abs(assignment_timestamp - Date.now()) / 1000 / 60 / 60 / 24;
+            
+            if (time_since_creation_in_days > 7) {
+              // Local storage element is outdated!
+              // This assignment was done more than one week ago. Loop again through all elements of local storage to delete the ones which were created during this assignment.
+              var assignment_id_of_expired_assignment = key.replace("timestamp", "");
+              var locstor_keys_new = Object.keys(window.localStorage);
+              $.each(locstor_keys_new, function(index_expired, key_expired) {
+                if (key_expired.includes(assignment_id_of_expired_assignment)) {
+                  // The key of this element contains the id of the expired assignment, therefore delete it.
+                  window.localStorage.removeItem(key_expired);
+                }
+              })
+            }
+
+          }
+        })
+
+        // submit assignment and send data to mturk
+        $(this).unbind('submit').submit(); // continue with the submit
+      })
+
+    });
+
+
+    function printDataOnServer(message) {
+      // get timestamp
+      var currentTimeInMs = Date.now();
+
+      var submit_DATA = {'message': message, 'timestamp': currentTimeInMs, 'annotations_on_load': JSON.stringify(window.annotations), 'annotations': JSON.stringify(window.relation_annotations), 'filterData_step2': JSON.stringify(window.filterData_step2),  'worker_assignment_data': JSON.stringify({{worker_assignment_data|tojson}}), 'feedback': $("textarea[name='feedback']").val(), 'logger': window.logger};
+
+      $.getJSON('{{url_for('textannotation_bp.submit_data_relation')}}', submit_DATA, function(data) {
+        //console.log("data was successfully sent to the server");
+        console.log(data);
+      })
+    }
+
+
+    function submit_data_wrongfilter2answer() {
+      
+      var submit_DATA = {'worker_assignment_data': JSON.stringify({{worker_assignment_data|tojson}}), 'current_filter_step': current_filter_question_id, 'nr_of_tries': getThisQuestionsNrOfWrongAttempts(), 'last_tried_annotation': JSON.stringify(window.filterData_step2.currentlyAnnotatedRelations)};
+
+      $.getJSON('{{url_for('textannotation_bp.submit_data_wrongfilter2answer')}}', submit_DATA, function(data) {
+        //console.log("data was successfully sent to the server");
+        console.log(data);
+      })
+    }
+
+    function displayTextToAnnotate(paragraph, annotations) {
+      var textToAnnotateDIV = $('#textToAnnotate');
+      textToAnnotateDIV.empty();
+
+      let text_to_annotate = ({{text_to_annotate|tojson}})[paragraph];
+
+      $.each(text_to_annotate, function(id, token_dict) {
+        textToAnnotateDIV.append($('<span id=' + id + '>' + token_dict.token + ' </span>'));
+      });
+
+      annotateTextAll(annotations, paragraph);
+      wrapButtonsAroundAnnotations();
+    };
+
+    function displayTextToAnnotateFILTERSTEP2() {
+
+      var filterInstructionsDIV = $('#filter-instructions');
+      filterInstructionsDIV.empty();
+
+      let filter_questions_step2 = ({{filter_questions_step2|tojson}});
+
+      let all_filter_parts = Object.keys(filter_questions_step2);
+      let all_not_passed_filter_parts = all_filter_parts.filter(function (id) {
+        return window.filterData_step2.passed_parts.indexOf(id) < 0;
+      });
+      
+      // define the current_filter_question_id as the first filter part which is not passed yet
+      window.current_filter_question_id = all_not_passed_filter_parts[0];
+
+      var filter_instructions = filter_questions_step2[current_filter_question_id]['instructions'];
+      var filter_annotations = filter_questions_step2[current_filter_question_id]['annotations'];
+      var filter_text_to_annotate = filter_questions_step2[current_filter_question_id]['text_to_annotate'];
+
+      filterInstructionsDIV.append(filter_instructions);
+
+
+      var textToAnnotateDIV = $('#textToAnnotate');
+      textToAnnotateDIV.empty();
+
+      $.each(filter_text_to_annotate, function(id, token_dict) {
+        textToAnnotateDIV.append($('<span id=' + id + '>' + token_dict.token + ' </span>'));
+      });
+
+
+      annotateTextAllFILTERSTEP2(filter_annotations);
+      wrapButtonsAroundAnnotations();
+    };
+
+    function annotateTextAll(annotations, paragraph) {
+      if (paragraph in annotations) {
+        
+        for (var i = 0; i < annotations[paragraph].length; i++) {
+
+          let start = annotations[paragraph][i][0];
+          let end = annotations[paragraph][i][1];
+          var annotation = annotations[paragraph][i][2];
+          for (var j = parseFloat(start); j <= parseFloat(end); j++){
+            if (j == parseFloat(start)) {
+              addTokenAnnotation(j, annotation, "firstToken")
+            }
+            if (j == parseFloat(end)) {
+              addTokenAnnotation(j, annotation, "lastToken")
+            }
+            if ((j > parseFloat(start)) | (j < parseFloat(end))) {
+              addTokenAnnotation(j, annotation, false);
+            }
+          }
+          addAnnotationName(end, annotation);
+        }
+      }
+    };
+
+    function annotateTextAllFILTERSTEP2(annotations) {
+      
+      for (var i = 0; i < annotations.length; i++) {
+
+        let start = annotations[i][0];
+        let end = annotations[i][1];
+        var annotation = annotations[i][2];
+        for (var j = parseFloat(start); j <= parseFloat(end); j++){
+          if (j == parseFloat(start)) {
+            addTokenAnnotation(j, annotation, "firstToken")
+          }
+          if (j == parseFloat(end)) {
+            addTokenAnnotation(j, annotation, "lastToken")
+          }
+          if ((j > parseFloat(start)) | (j < parseFloat(end))) {
+            addTokenAnnotation(j, annotation, false);
+          }
+        }
+        addAnnotationName(end, annotation);
+      }
+      
+    };
+
+    function wrapButtonsAroundAnnotations() {
+      var numberOfRelationTypes = annotation_types.length;
+      for (var i = 0; i < numberOfRelationTypes; i++) {
+        // loop through all relation types
+        let className = annotation_types[i][0];
+        //let displayName = annotation_types[i][1]; // not needed
+        //let color = annotation_types[i][2]; // not needed
+        
+        // loop through all argumentative components and wrap an a-span around them to make them clickable
+        // including #textToAnnotate makes sure that content of example buttons is not considered
+        $.each($( "#textToAnnotate ." + className + ".firstToken" ), function(index, element) {
+          // loop through all first tokens of annotation of type (according to outer loop)
+          // select all annotated tokens
+          let selectRestOfAnnotation = $(element).nextUntil( ".annotationName" ).addBack();
+          // add annotation name span to selection
+          let selectRestOfAnnotationIncludingAnnotationName = selectRestOfAnnotation.next().addBack();
+          // wrap button around all annotations for each annotation type
+          $(selectRestOfAnnotationIncludingAnnotationName).wrapAll( "<a class=annotationForRelation></a>" );
+        });
+        
+      }
+
+    }
+
+    function createAllAnnotationTypeCssClasses(annotation_types) {
+      var numberOfRelationTypes = annotation_types.length;
+      for (var i = 0; i < numberOfRelationTypes; i++) {
+        // create css classes on the fly for each annotation type
+        
+        let className = annotation_types[i][0];
+        let displayName = annotation_types[i][1];
+        let color = annotation_types[i][2];
+        
+        
+        $("<style type='text/css'> ." + className + " {\
+          background-color: " + color + ";\
+          color: white;\
+          }</style>").appendTo("head");
+
+        if (i == 0) {
+          var marginLeft = "0px";
+        }
+        else {
+          var marginLeft = "15px";
+        }
+
+
+        $("<style type='text/css'> .annotationName-" + className + " {\
+          font-style: italic;\
+          border-bottom: 3px solid " + color + ";\
+          margin-right: 2px;\
+          } </style>").appendTo("head");
+
+      }
+    };
+
+    function displayAllRelationTypeButtons(relation_types) {
+      var numberOfRelationTypes = relation_types.length;
+      for (var i = 0; i < numberOfRelationTypes; i++) {
+        // create css classes and html element on the fly for each button
+        
+        let className = relation_types[i][0];
+        let displayName = relation_types[i][1];
+        let color = relation_types[i][2];
+        
+        
+        $("<style type='text/css'> ." + className + " {\
+          background-color: " + color + " !important;\
+          color: #595959;\
+          }</style>").appendTo("head");
+
+        if (i == 0) {
+          var marginLeft = "0px";
+        }
+        else {
+          var marginLeft = "15px";
+        }
+
+        $("<style type='text/css'> #relationButtons #" + className + " {\
+          color: #595959;\
+          padding: 5px;\
+          margin-left: " + marginLeft + ";\
+          background-color: " + color + ";\
+          border-top-right-radius: 0px;\
+          border-bottom-right-radius: 0px;\
+          }</style>").appendTo("head");
+
+        $("<style type='text/css'> #relationButtons #" + className + ":hover:enabled {\
+          border: 3px solid white;\
+          padding: 2px;\
+          }</style>").appendTo("head");
+
+        $("<style type='text/css'> .annotationName-" + className + " {\
+          font-style: italic;\
+          font-size: small;\
+          border-bottom: 3px solid " + color + ";\
+          margin-right: 2px;\
+          } </style>").appendTo("head");
+
+        $('#relationButtons').append($('\
+          <button class="btn btn-basic ' + className + '" id="' + className + '" disabled>'+ displayName + '</button>\
+          '));
+      }
+    };
+
+    function addTokenAnnotation(tokenId, annotation, styleClass) {
+      $("#"+tokenId).addClass(annotation);
+      if (!(styleClass === false)) {
+        $("#"+tokenId).addClass(styleClass);
+      }
+    };
+
+    function addAnnotationName(tokenId_before, annotation) {
+      
+      let displayName = (window.annotation_types.find(type => type[0] == annotation)[1]);
+
+      $('<span class="annotationName annotationName-' + annotation + '" id=' + (tokenId_before+0.5) + '> ' + displayName + ' </span>').insertAfter("#" + tokenId_before);
+    };
+
+
+    function loadFeedback() {
+      // set the value of the feedback input box based on local storage data
+      $("textarea[name='feedback']").val(window.feedback);
+    }
+
+
+  </script>
+
+  <script>
+    $(document).ready(function () {
+
+      // make sure that focus is on text field as soon as certainty modal is opened
+      $('#certaintyModal').on('shown.bs.modal', function () {
+        $('#certaintyModalInput').trigger('focus')
+      });
+
+      $('#certaintyModal').on('hidden.bs.modal', function () {
+        // whenever the modal is closed, reset worker selection
+        resetCurrentlySelectedAnnotations();
+      });
+
+
+      $(document).on("click", ".annotationForRelation", function(){
+        // click event of highlighted annotations in text is nested in a document click event listener since those buttons (for selecting an annotation) are created dynamically
+
+        let annotationTokens = $(this).children();
+        // get the id of the first token of the clicked annotation
+        let firstTokenID = parseInt(annotationTokens[0].id);
+        // get the id of the last token of the clicked annotation
+        let lastTokenID = parseInt(annotationTokens[annotationTokens.length - 2].id);
+        
+        let currentSelection = window.currentlySelectedAnnotations;
+
+        if ((currentSelection.annotation_1.start == firstTokenID && currentSelection.annotation_1.end == lastTokenID) || (currentSelection.annotation_2.start == firstTokenID && currentSelection.annotation_2.end == lastTokenID)) {
+          // selected annotation is already selected
+          removeAnnotationFromCurrentSelection(parseInt(firstTokenID), parseInt(lastTokenID));
+        }
+        else {
+          // selected annotation is a new selection
+          addAnnotationToCurrentSelection(firstTokenID, lastTokenID);
+        }
+
+      });
+
+
+
+      $('#relationButtons > button').not('button.relationInfoButton').on('click',(function () {
+
+        window.pressedRelationAnnotationButton = this.id;
+        let relationType_displayName = $(this).html();
+        window.currentlySelectedAnnotations.relation_type = this.id;
+
+        if (window.filterData_step2.filterPassed === false) {
+          // the worker is in currently on the FILTER (Step 2) page
+
+          // setting the previousTableEntryID var makes sure that the table row is added at the end of the table
+          var previousTableEntryID = 'newTableEntry';
+          // if it is a new relation, get ID for new relation
+          var newAnnotationId = 0;
+          Object.keys(window.filterData_step2.currentlyAnnotatedRelations).forEach((key, index) => {
+            // loop through all existing relation_annotations to increment new key from currently highest
+            if (parseInt(key) >= newAnnotationId) {
+              newAnnotationId = parseInt(key) + 1;
+            }
+          })
+
+          // push newly annotated relation to global variable
+          window.filterData_step2.currentlyAnnotatedRelations[newAnnotationId] = window.currentlySelectedAnnotations;
+          
+          addRowToAnnotationRelationsTable(newAnnotationId, window.currentlySelectedAnnotations, previousTableEntryID);
+
+          disableRelationButtons();
+
+          updateWorkerData();
+
+          logger = logger.concat(Date.now(), "/Add FILTER (Step 2) relation. relation=", JSON.stringify(currentlySelectedAnnotations), "//");
+
+          // new relation annotation is finished which is why now we can reset all contents of global variable for currently selected annotations
+          resetCurrentlySelectedAnnotations();
+          
+        }
+        else {
+          // the worker already passed the filter (Step 2) and is now on the annotation page
+          
+          window.modalMode = 'NewAnnotation';
+          window.switchedSelectionsInModal = false;
+
+          // clear certainty modal radio button and input text
+          $("#certaintyRadioButtons input:radio:checked").prop("checked", false);
+          $('#certaintyModalInput').val("");
+          // remove all red borders
+          $("#certaintyRadioButtons").css("border", "");
+          $("#keywordSelection_1").css("border", "");
+          $("#keywordSelection_2").css("border", "");
+          $("#certaintyModalInput").css("border", "");
+          // hide delete button
+          $("#deleteAnnotation-wrapper").addClass("hidden");
+          // hide changeAnnotationType buttons
+          $("#changeAnnotationType").addClass("hidden");
+          // set text of save annotation button
+          $("#saveAnnotation").text("Save Relation");
+          // disable the save annotation button
+          $('#saveAnnotation').prop("disabled", true);
+
+          
+          var keywordSelectionDIV_1 = $('#keywordSelection_1');
+          var keywordSelectionDIV_2 = $('#keywordSelection_2');
+          keywordSelectionDIV_1.empty();
+          keywordSelectionDIV_2.empty();
+
+
+          if ((Math.abs(currentlySelectedAnnotations.annotation_1.end - currentlySelectedAnnotations.annotation_1.start) < 1) && (Math.abs(currentlySelectedAnnotations.annotation_2.end - currentlySelectedAnnotations.annotation_2.start) < 1)) {
+            //hide keywords section title since both annotations only contain one token
+            $("#keywordSelection-title").addClass("hidden");
+          }
+          else {
+            // unhide keywordSelection-title
+            $("#keywordSelection-title").removeClass("hidden");
+          }
+          
+          let annotated_tokens_1 = $("#" + currentlySelectedAnnotations.annotation_1.start).parent().children().clone();
+          let annotated_tokens_2 = $("#" + currentlySelectedAnnotations.annotation_2.start).parent().children().clone();
+
+          $.each(annotated_tokens_1, function(nr, annotatedTokenSpan) {
+            if (parseFloat(annotatedTokenSpan.id) % 1 == 0) {
+              keywordSelectionDIV_1.append($(annotatedTokenSpan));
+            }
+          });
+
+          $.each(annotated_tokens_2, function(nr, annotatedTokenSpan) {
+            if (parseFloat(annotatedTokenSpan.id) % 1 == 0) {
+              keywordSelectionDIV_2.append($(annotatedTokenSpan));
+            }
+          });
+
+
+          keywordSelectionDIV_1.children().wrap( "<a class='keywordSelectionButton'></a>" );
+          keywordSelectionDIV_2.children().wrap( "<a class='keywordSelectionButton'></a>" );
+
+          $(".keywordSelectionButton span").removeClass();
+
+          // if one of the annotations only contains one token then autoselect it
+          if (Math.abs(currentlySelectedAnnotations.annotation_1.end - currentlySelectedAnnotations.annotation_1.start) < 1) {
+            $("#keywordSelection_1 #" + currentlySelectedAnnotations.annotation_1.start).parent().addClass("keywordSelectionButton-selected");
+            // remove hover css classes
+            $("#keywordSelection_1 .keywordSelectionButton-selected").hover(function() {
+              $(this).css({"cursor":"default", "background-color":"orange"});
+              $(this).addClass("autoselected");
+            });
+          }
+
+          if (Math.abs(currentlySelectedAnnotations.annotation_2.end - currentlySelectedAnnotations.annotation_2.start) < 1) {
+            $("#keywordSelection_2 #" + currentlySelectedAnnotations.annotation_2.start).parent().addClass("keywordSelectionButton-selected");
+            // remove hover css classes
+            $("#keywordSelection_2 .keywordSelectionButton-selected").hover(function() {
+              $(this).css({"cursor":"default", "background-color":"orange"});
+              $(this).addClass("autoselected");
+            });
+          }
+        
+
+          // first remove all classes and then add class to modalheader for css styling reasons
+          $(".modal-header").removeClass().addClass("modal-header").addClass(window.pressedRelationAnnotationButton);
+          // then extend the modal header text
+          let headerText = "New relation" + ": <u><b>" + relationType_displayName + "</b></u>";
+          $("#exampleModalLongTitle").html(headerText);
+
+
+          // open the certainty modal
+          $('#certaintyModal').modal({
+            keyboard: false
+          });
+          
+          logger = logger.concat(Date.now(), "/New relation. type=", pressedRelationAnnotationButton, "//");
+
+        }
+      })
+      );
+
+
+      $(document).on("click", "#changeAnnotationType-buttons > button", function(){
+        // click event of changeAnnotationType-buttons is nested in a document click event listener since these buttons are created dynamically when an annotation is being edited
+        
+        // change the annotation_type of the annotation based on the id of the pressed button
+        window.pressedRelationAnnotationButton = this.id;
+
+        // remove the orange border from all buttons
+        $("#changeAnnotationType-buttons > button").css("border", "4px solid white");
+        // then add orange button to selected new annotation_type
+        $("#changeAnnotationType-buttons #" + this.id).css("border", "4px solid orange");
+
+        return false;
+      });
+
+
+      $('button#saveAnnotation').on('click',(function () {
+        if (modalMode == 'EditAnnotation') {
+          // get id of deleteButton
+          let idToDelete = $(".deleteRelation").attr('id');
+
+          var previousTableEntryID = $("#TableRow-" + idToDelete).prev().attr("id");
+
+          // make sure that editing the relation does not edit it's ID
+          var newAnnotationId = idToDelete;
+
+          // delete annotation according to clicked delete button id
+          // after relation is deleted create relation newly including the changes
+          deleteAnnotation(idToDelete);
+        }
+        else {
+          // setting the previousTableEntryID var makes sure that the table row is added at the end of the table
+          var previousTableEntryID = 'newTableEntry';
+          // if it is a new relation, get ID for new relation
+          var newAnnotationId = 0;
+          Object.keys(window.relation_annotations[window.paragraphNumber]).forEach((key, index) => {
+            // loop through all existing relation_annotations to increment new key from currently highest
+            if (parseInt(key) >= newAnnotationId) {
+              newAnnotationId = parseInt(key) + 1;
+            }
+          })
+        }
+
+
+        let selectedKeywords_1 = $("#keywordSelection_1 .keywordSelectionButton.keywordSelectionButton-selected");
+        let selectedKeywords_2 = $("#keywordSelection_2 .keywordSelectionButton.keywordSelectionButton-selected");
+        var selectedKeywordIDs = {keywordSelection_1: [], keywordSelection_2: []};
+
+        // loop through all selected keywords and add them to the array so that it can be saved within the new annotation
+
+        selectedKeywords_1.each(function( index ) {
+          let token_id = $(this).children("span").first().attr("id");
+          selectedKeywordIDs.keywordSelection_1.push(token_id);
+        });
+        selectedKeywords_2.each(function( index ) {
+          let token_id = $(this).children("span").first().attr("id");
+          selectedKeywordIDs.keywordSelection_2.push(token_id);
+        });
+        
+        let certaintyModalInput = $('#certaintyModalInput').val();
+        let certaintyButton = $('#certaintyRadioButtons input:radio:checked').val();
+
+        if (certaintyButton == null) {
+          certaintyButton = -1;
+        }
+        
+
+        if (window.switchedSelectionsInModal === true) {
+          // the worker switched the selected annotations in the edit modal. Therefore, change exchange them when they are added to the global variable
+
+          let annotation_1_old = window.currentlySelectedAnnotations.annotation_1;
+          let annotation_2_old = window.currentlySelectedAnnotations.annotation_2;
+          window.currentlySelectedAnnotations.annotation_1 = annotation_2_old;
+          window.currentlySelectedAnnotations.annotation_2 = annotation_1_old;
+        }
+
+        if (modalMode == 'EditAnnotation') {
+          window.currentlySelectedAnnotations.relation_type = window.pressedRelationAnnotationButton;
+        }
+        
+        // push newly annotated relation to global variable
+        window.relation_annotations[window.paragraphNumber][newAnnotationId] = [window.currentlySelectedAnnotations, certaintyButton, certaintyModalInput, selectedKeywordIDs, [({{text_to_annotate|tojson}})[window.paragraphNumber][window.currentlySelectedAnnotations.annotation_1.start]["start"], ({{text_to_annotate|tojson}})[window.paragraphNumber][window.currentlySelectedAnnotations.annotation_1.end]["end"]], [({{text_to_annotate|tojson}})[window.paragraphNumber][window.currentlySelectedAnnotations.annotation_2.start]["start"], ({{text_to_annotate|tojson}})[window.paragraphNumber][window.currentlySelectedAnnotations.annotation_2.end]["end"]]];
+        
+        
+        addRowToAnnotationRelationsTable(newAnnotationId, window.currentlySelectedAnnotations, previousTableEntryID);
+
+        disableRelationButtons();
+      
+        // and hide modal
+        $('#certaintyModal').modal('toggle');
+
+
+        updateWorkerData();
+
+        logger = logger.concat(Date.now(), "/Save relation. relation=", JSON.stringify(currentlySelectedAnnotations), "//");
+
+        // new relation annotation is finished which is why now we can reset all contents of global variable for currently selected annotations
+        resetCurrentlySelectedAnnotations();
+
+      }));
+
+      $(document).on("click", "#relationsTable .editAnnotationIcon", function(){
+        // click event of delete relation is nested in a document click event listener since relation table is changed dynamically
+
+        
+        if (window.filterData_step2.filterPassed === true) {
+          // filter (Step 2) has been passed, therefore edit annotation
+          
+          let idToEdit = event.target.parentElement.id;
+          
+          resetCurrentlySelectedAnnotations();
+          
+          window.switchedSelectionsInModal = false;
+          
+          editAnnotation(idToEdit);
+          logger = logger.concat(Date.now(), "/Edit relation. id=", idToEdit, "//");
+        }
+        else {
+          // filter (Step 2) has NOT been passed, therefore DELETE annotation
+          
+          let idToDelete = event.target.id;
+
+          // delete annotation according to clicked delete button id
+          deleteAnnotationFILTERStep2(idToDelete);
+          
+          resetCurrentlySelectedAnnotations();
+
+          
+          updateWorkerData();
+
+        }
+      });
+
+
+      $('button.deleteRelation').on('click',(function () {
+        // get id of deleteButton
+        let idToDelete = $(".deleteRelation").attr('id');
+
+        // delete annotation according to clicked delete button id
+        deleteAnnotation(idToDelete);
+        
+        resetCurrentlySelectedAnnotations();
+
+        // hide modal
+        $('#certaintyModal').modal('toggle');
+        
+        updateWorkerData();
+
+      }));
+
+
+      /* click handlers so that every time a worker enters something in the modal, the save annotation button is enabled in case no input is missing anymore. This makes sure that a worker always has to fill out everything */
+
+
+      $(document).on("click", ".keywordSelectionButton", function(){
+        // click event of keyword buttons is nested in a document click event listener since keyword buttons are created dynamically
+        // check if the a tag has the class 'autoselected'. If yes, it means that the argumentative component consists of only one token. Therefore it was autoselected and hence the class should not be toggled as these keywords should not be unselected.
+        if ($(this).hasClass("autoselected") === false) {
+          $(this).toggleClass("keywordSelectionButton-selected");
+          updateSaveAnnotationButton();
+        }
+
+        return false;
+      });
+
+      $(".switchSelectedAnnotations").on('click',(function () {
+
+        window.switchedSelectionsInModal = !window.switchedSelectionsInModal;
+
+        // switch the IDs of the two keyword elements
+        $("#keywordSelection_1").attr("id", "keywordSelection_1-switch");
+        $("#keywordSelection_2").attr("id", "keywordSelection_2-switch");
+        $("#keywordSelection_1-switch").attr("id", "keywordSelection_2");
+        $("#keywordSelection_2-switch").attr("id", "keywordSelection_1");
+
+        // and then switch the two keyword elements
+        $("#selection1title").after($("#keywordSelection_1"));
+        $("#selection2title").after($("#keywordSelection_2"));
+        
+
+      }));
+
+      $(function(){
+        // whenever a radiobutton is clicked, check if save annotation button can be enabled
+        $('#certaintyRadioButtons li').click(function(){
+          updateSaveAnnotationButton();
+        });
+
+        // whenever feedback-textfield changes, update worker data on server
+        $("textarea[name='feedback']").on('change keydown paste input', function(){
+          updateWorkerData();
+        });
+
+      });
+
+      $("#saveAnnotationWrapper").hover(function(){
+        // when worker hovers over disabled saveAnnotation-button, indicate all empty inputs with a red border
+        updateSaveAnnotationButton(true);
+      });
+
+      $("#certaintyRadioButtons li").click(function(){
+        // worker clicks on label or next to label, then automatically check the nearby radio button in annotation modal
+        let li_value = $(this).attr("value");
+        $("input[name='likert'][value='" + li_value + "']").prop("checked", true);
+        updateSaveAnnotationButton();
+      });
+
+    });
+
+
+    function addAnnotationToCurrentSelection(start, end) {
+      var currentSelection = window.currentlySelectedAnnotations;
+
+      if (currentSelection.annotation_1.start == -1 && currentSelection.annotation_1.end == -1) {
+        // check if there is none of the annotations is already selected
+        // set IDs of start- and end-token of first selected annotation 
+        currentSelection.annotation_1.start = start;
+        currentSelection.annotation_1.end = end;
+        markAnnotationAsSelected(start, end);
+        
+      }
+      else if (currentSelection.annotation_2.start == -1 && currentSelection.annotation_2.end == -1) {
+        // there is at least one selected annotation. check if there is no second selected annotation yet
+        // set IDs of start- and end-token of second selected annotation 
+        currentSelection.annotation_2.start = start;
+        currentSelection.annotation_2.end = end;
+        markAnnotationAsSelected(start, end);
+
+      }
+      else {
+        // there are already two selected annotations
+
+      }
+
+      if (currentSelection.annotation_1.start != -1 && currentSelection.annotation_1.end != -1 && currentSelection.annotation_2.start != -1 && currentSelection.annotation_2.end != -1) {
+        // there are two selected annotations, therefore:
+        // disable all annotations except the two which are already selected
+        $("#textToAnnotate a").not(".selected").addClass("disabled");
+
+        // and enable relation annotation buttons
+        enableRelationButtons();
+
+      }
+      else {
+        // less than two annotations are selected, therefore:
+        // enable all annotations
+        $("#textToAnnotate a").removeClass("disabled");
+        // and disable relation annotation buttons
+        disableRelationButtons();
+
+      }
+      //window.currentlySelectedAnnotations ;
+
+      //update global variable
+      window.currentlySelectedAnnotations = currentSelection;
+
+      // add argumentative components which were selected by the user to the tentative table row
+      addTENTATIVERowToAnnotationRelationsTable();
+    }
+
+    function removeAnnotationFromCurrentSelection(start, end) {
+      unmarkAnnotationAsSelected(start, end);
+
+      // obviously now less than two annotations are selected, therefore:
+      // enable all annotations
+      $("#textToAnnotate a").removeClass("disabled");
+      // and disable relation annotation buttons
+      disableRelationButtons();
+
+
+      var currentSelection = window.currentlySelectedAnnotations;
+
+      if (currentSelection.annotation_1.start == start && currentSelection.annotation_1.end == end) {
+        // first of the two selected annotations was dis-selected
+        currentSelection.annotation_1.start = -1;
+        currentSelection.annotation_1.end = -1;
+
+      }
+      else {
+        // second of the two selected annotations was dis-selected
+        currentSelection.annotation_2.start = -1;
+        currentSelection.annotation_2.end = -1;
+      }
+      currentSelection.relation_type = "";
+
+      //update global variable
+      window.currentlySelectedAnnotations = currentSelection;
+
+      // update the tentative table row
+      addTENTATIVERowToAnnotationRelationsTable();
+
+    }
+
+    function markAnnotationAsSelected(start, end) {
+      // select html element of annotation that was selected and add class 'selected'
+      let aTagOfSelectedAnnotation = $("#textToAnnotate a").has("#" + start);
+      aTagOfSelectedAnnotation.addClass("selected");
+    }
+
+    function unmarkAnnotationAsSelected(start, end) {
+      // select html element of annotation that was selected and remove class 'selected'
+      let aTagOfSelectedAnnotation = $("#textToAnnotate a").has("#" + start);
+      aTagOfSelectedAnnotation.removeClass("selected");
+    }
+
+    function resetCurrentlySelectedAnnotations() {
+      // this function resets all currently selected argumentative components by the user
+      // reset the global variable for the currently selected annotations
+      window.currentlySelectedAnnotations = {annotation_1: {start: -1, end: -1}, annotation_2: {start: -1, end: -1}, relation_type: ""};
+
+      // unselect all annotations
+      $("#textToAnnotate a").removeClass("selected");
+      // enable all annotations
+      $("#textToAnnotate a").removeClass("disabled");
+      // and disable relation annotation buttons
+      disableRelationButtons();
+
+      // remove the current tentative table row
+      removeTENTATIVERowFromAnnotationRelationsTable();
+    }
+    
+
+    function addRowToAnnotationRelationsTable(newAnnotationId, relationAnnotation, previousTableEntryID) {
+      let tokensOfSelectedAnnotation_1 = $("#textToAnnotate a").has("#" + relationAnnotation.annotation_1.start).children().clone();
+      let tokensOfSelectedAnnotation_2 = $("#textToAnnotate a").has("#" + relationAnnotation.annotation_2.start).children().clone();
+      let selectedRelationClassName = relationAnnotation.relation_type;
+      var selectedRelationDisplayName = "";
+      
+      for (var i = 0; i < relation_types.length; i++) {
+        // loop through all relation_types to find the display name of the selected relation
+        if (selectedRelationClassName == relation_types[i][0]) {
+          var selectedRelationDisplayName = relation_types[i][1];
+        }
+      }
+
+
+      if (window.filterData_step2.filterPassed === true) {
+        // filter (Step 2) has been passed, therefore create table row with edit button
+
+        var newTableEntryHtml = "\
+          <tr id='TableRow-" + newAnnotationId + "' class='" + selectedRelationClassName + "'>\
+            <td class='textColumn new_annotation_1'></td>\
+            <td class='relation'>" + selectedRelationDisplayName + "</td>\
+            <td class='textColumn new_annotation_2'></td>\
+            <td class='editRelationColumn'>\
+            <button type='button' class='close editAnnotation' aria-label='Close'><span id=" + newAnnotationId + " class='editAnnotationIcon' aria-hidden='true'><i class='fas fa-ellipsis-h editAnnotationIcon'></i></span></button>\
+            </td>\
+          </tr>\
+          "
+      }
+      else {
+        // filter (Step 2) has NOT been passed, therefore create table row with DELETE button
+
+        var newTableEntryHtml = "\
+          <tr id='TableRow-" + newAnnotationId + "' class='" + selectedRelationClassName + "'>\
+            <td class='textColumn new_annotation_1'></td>\
+            <td class='relation'>" + selectedRelationDisplayName + "</td>\
+            <td class='textColumn new_annotation_2'></td>\
+            <td class='editRelationColumn'>\
+            <button type='button' class='close editAnnotation' aria-label='Close'><span id=" + newAnnotationId + " class='deleteFILTERAnnotationIcon editAnnotationIcon' aria-hidden='true'>&times;</span></button>\
+            </td>\
+          </tr>\
+          "
+      }
+
+
+      if (previousTableEntryID == 'newTableEntry') {
+        // this table row is added because the table is loaded or because the worker created a new relation. Insert the table row at the END of the table.
+        $("#relationsTable tbody").append(newTableEntryHtml);
+      }
+      else if (typeof previousTableEntryID != 'undefined') {
+        // this table row is added because the worker edited the relation. Insert the table row IN THE SAME PLACE as it was before.
+        $( newTableEntryHtml ).insertAfter( $( "#" + previousTableEntryID ) );
+      }
+      else {
+        // this table row is added because the worker edited the relation. This row was at the BEGINNING of the table. Insert the table row IN THE SAME PLACE as it was before, hence in the BEGINNING.
+        $( "#relationsTable tbody" ).prepend( newTableEntryHtml );
+      }
+
+      $.each(tokensOfSelectedAnnotation_1, function(nr, annotatedTokenSpan) {
+        // append each token of the first selected annotation to the new table cell
+        $("#relationsTable .new_annotation_1").append($(annotatedTokenSpan));
+      });
+      
+
+      $.each(tokensOfSelectedAnnotation_2, function(nr, annotatedTokenSpan) {
+        // append each token of the second selected annotation to the new table cell
+        $("#relationsTable .new_annotation_2").append($(annotatedTokenSpan));
+      });
+
+      // remove the indicator classes of the new table cells so that selected annotations can be appended to the correct table row
+      $("#relationsTable .new_annotation_1").removeClass("new_annotation_1");
+      $("#relationsTable .new_annotation_2").removeClass("new_annotation_2");
+      
+      // update the size of the text within the newly added table row. This is necessary if the size has been changed by the worker.
+      updateTextSize();
+
+    }
+    
+
+    function addTENTATIVERowToAnnotationRelationsTable() {
+      // first remove the current tentative table row so that a new tentative row can be created based on the currently selected argumentative components by the user
+      removeTENTATIVERowFromAnnotationRelationsTable();
+
+      var firstSelectionExists = (window.currentlySelectedAnnotations.annotation_1.start != -1);
+      var secondSelectionExists = (window.currentlySelectedAnnotations.annotation_2.start != -1);
+
+
+      if (firstSelectionExists) {
+        var tokensOfSelectedAnnotation_1 = $("#textToAnnotate a").has("#" + window.currentlySelectedAnnotations.annotation_1.start).children().clone();
+      }
+      if (secondSelectionExists) {
+        var tokensOfSelectedAnnotation_2 = $("#textToAnnotate a").has("#" + window.currentlySelectedAnnotations.annotation_2.start).children().clone();
+      }
+      
+
+      let newTableEntryHtml = "\
+            <tr id='TableRow-TENTATIVE'>\
+              <td class='textColumn new_annotation_1_TENTATIVE'></td>\
+              <td class='relation'>?</td>\
+              <td class='textColumn new_annotation_2_TENTATIVE'></td>\
+            </tr>\
+            "
+      
+
+      // this table row is added because the table is loaded or because the worker created a new relation. Insert the table row at the END of the table.
+      $("#relationsTable tbody").append(newTableEntryHtml);
+
+
+      if (firstSelectionExists) {
+        $.each(tokensOfSelectedAnnotation_1, function(nr, annotatedTokenSpan) {
+          // append each token of the first selected annotation to the new table cell
+          $("#relationsTable .new_annotation_1_TENTATIVE").append($(annotatedTokenSpan));
+        });
+      }
+      
+
+      if (secondSelectionExists) {
+        $.each(tokensOfSelectedAnnotation_2, function(nr, annotatedTokenSpan) {
+          // append each token of the second selected annotation to the new table cell
+          $("#relationsTable .new_annotation_2_TENTATIVE").append($(annotatedTokenSpan));
+        });
+      }
+
+      // remove the indicator classes of the new table cells so that selected annotations can be appended to the correct table row
+      $("#relationsTable .new_annotation_1_TENTATIVE").removeClass("new_annotation_1_TENTATIVE");
+      $("#relationsTable .new_annotation_2_TENTATIVE").removeClass("new_annotation_2_TENTATIVE");
+      
+      // update the size of the text within the newly added table row. This is necessary if the size has been changed by the worker.
+      updateTextSize();
+
+    }
+
+    function removeRowFromAnnotationRelationsTable(annotationToDeleteID, paragraphNumber) {
+      
+      //delete the relation annotation from global object
+      delete window.relation_annotations[paragraphNumber][annotationToDeleteID];
+      //remove corresponding row from table
+      $("#relationsTable tr").has("span#" + annotationToDeleteID + ".editAnnotationIcon").remove();
+
+    }
+
+    function removeRowFromAnnotationRelationsTableFILTERStep2(annotationToDeleteID) {
+      
+      //delete the relation annotation from global object
+      delete window.filterData_step2.currentlyAnnotatedRelations[annotationToDeleteID];
+      //remove corresponding row from table
+      $("#relationsTable tr").has("span#" + annotationToDeleteID + ".editAnnotationIcon").remove();
+
+    }
+
+    function removeTENTATIVERowFromAnnotationRelationsTable() {
+      $("#TableRow-TENTATIVE").remove();
+    }
+
+    function reloadAnnotationRelationsTable(paragraphNumber) {
+      // empty the relationsTable body
+      $("#relationsTable tbody").empty();
+
+      Object.keys(window.relation_annotations[paragraphNumber]).forEach((key, index) => {
+        // loop through all existing relation_annotations
+        let value = window.relation_annotations[paragraphNumber][key][0];
+        let relationClassName = value.relation_type;
+        let relationDisplayName = value.relation_type;
+        
+        // add row to relations table for each of the existing relation annotations
+        addRowToAnnotationRelationsTable(key, value, 'newTableEntry');
+      })
+
+    }
+
+    function reloadAnnotationRelationsTableFILTERSTEP2() {
+      // empty the relationsTable body
+      $("#relationsTable tbody").empty();
+      
+      Object.keys(window.filterData_step2.currentlyAnnotatedRelations).forEach((key, index) => {
+        // loop through all existing relation_annotations
+        let value = window.filterData_step2.currentlyAnnotatedRelations[key][0];
+        let relationClassName = value.relation_type;
+        let relationDisplayName = value.relation_type;
+        
+        // add row to relations table for each of the existing relation annotations
+        addRowToAnnotationRelationsTable(key, value, 'newTableEntry');
+      })
+
+    }
+
+
+
+    function updateSaveAnnotationButton(onHover=false) {
+
+
+      let certaintyRadioButton = $('#certaintyRadioButtons input:radio:checked').val();
+      let keywordSelection_1 = $("#keywordSelection_1 .keywordSelectionButton.keywordSelectionButton-selected");
+      let keywordSelection_2 = $("#keywordSelection_2 .keywordSelectionButton.keywordSelectionButton-selected");
+
+      let certaintyRadioButton_isFilled = typeof certaintyRadioButton != 'undefined';
+
+
+      if (Math.abs(currentlySelectedAnnotations.annotation_1.end - currentlySelectedAnnotations.annotation_1.start) < 1) {
+        // set keywordSelection_1_isFilled=true since annotation consists of only one token
+        var keywordSelection_1_isFilled = true;
+      }
+      else {
+        var keywordSelection_1_isFilled = keywordSelection_1.length != 0;
+      }
+
+      if (Math.abs(currentlySelectedAnnotations.annotation_2.end - currentlySelectedAnnotations.annotation_2.start) < 1) {
+        // set keywordSelection_2_isFilled=true since annotation consists of only one token
+        var keywordSelection_2_isFilled = true;
+      }
+      else {
+        var keywordSelection_2_isFilled = keywordSelection_2.length != 0;
+      }
+      
+      //remove red border if now worker filled it out
+      if (certaintyRadioButton_isFilled) {
+        $("#certaintyRadioButtons").css("border", "");
+      }
+      if (keywordSelection_1_isFilled) {
+        $("#keywordSelection_1").css("border", "");
+      }
+      if (keywordSelection_2_isFilled) {
+        $("#keywordSelection_2").css("border", "");
+      }
+
+      if (certaintyRadioButton_isFilled && keywordSelection_1_isFilled && keywordSelection_2_isFilled) {
+        // enable save button
+        $('#saveAnnotation').prop("disabled", false);
+        // deactivate popover
+        $('#saveAnnotationWrapper').removeAttr( "data-original-title" );
+        
+      }
+      else {
+        // disable save button
+        $('#saveAnnotation').prop("disabled", true);
+        // activate popover
+        $('#saveAnnotationWrapper').attr("data-original-title", "All inputs are required to save the relation.");
+
+        if (onHover) {
+          // if function was called because worker hovered over disabled saveAnnotation-button, visually show which input is missing
+          //remove red border if now worker filled it out
+          if (typeof certaintyRadioButton == 'undefined') {
+            $("#certaintyRadioButtons").css("border", "2px solid red");
+          }
+          if (keywordSelection_1.length == 0) {
+            $("#keywordSelection_1").css("border", "2px solid red");
+          }
+          if (keywordSelection_2.length == 0) {
+            $("#keywordSelection_2").css("border", "2px solid red");
+          }
+        }
+      }
+
+      };
+
+
+
+
+  </script>
+
+    
+
+</head>
+
+<body>
+
+  <div id="filter-alerts"></div>
+
+  <div class="container-fluid justify-content-center">
+    <div class="hidden row" id="instructions">
+      <div id="general-instructions">{% block instructions %}{% endblock %}</div>
+      <div id="startAnnotationButton" class="tooltip-wrapper disabled">
+        <button id="startAnnotation" class="btn btn-success btn-lg btn-block">Start!</button>
+      </div>
+    </div>
+    <div class="sticky-top" style="background-color: white;">
+      <div style="background-color: white; height: 4px"></div>
+      <div class="row progress hidden" id="progress">
+          <div class="progress-bar bg-success" role="progressbar" aria-valuenow="70"
+          aria-valuemin="0" aria-valuemax="100">
+            <span class="sr-only"></span>
+          </div>
+      </div>
+      
+      <div id="filter-instructions" class="row justify-content-left hidden"></div>
+      <div class="row justify-content-center hidden" id="userControls">
+        <button id="smallerTextButton" class="btn btn-outline-primary"><i class="fa fa-font"></i></button>
+        <button id="biggerTextButton" class="btn btn-outline-primary"><i class="fa fa-font"></i></button>
+      </div>
+      <div class="row justify-content-center hidden" id="relationButtons"></div>
+    </div>
+    <div class="row justify-content-center hidden" id="annotationArea-wrapper">
+      <div class="col-sm" id="textToAnnotate-wrapper">
+        <div id="textToAnnotate"></div>
+      </div>
+      <div class="col-sm" id="relationsTable">
+        <table class="table table-sm">
+          <thead id="tableHeader">
+            <tr>
+              <th scope="col">Text</th>
+              <th scope="col" class="relationHeader">Relation</th>
+              <th scope="col">Text</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- initially the table is empty -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="row hidden" id="filterButtonsStep2">
+      <div class="col-sm" id="previousPage">
+        <button id="previousPageButtonFILTERStep2" class="btn btn-basic previous">&laquo; Instructions</button>
+      </div>
+      <div class="col-sm" id="filterButtonsCheckStep2">
+        <button id="checkFilterAnswerStep2" class="btn btn-success checkbutton">Check</button>
+      </div>
+    </div>
+
+    <div class="row hidden" id="navigationButtons">
+      <div class="col-sm" id="previousPage">
+        <button id="previousPageButton" class="btn btn-basic previous">&laquo; Previous</button>
+      </div>
+      <div class="col-sm" id="nextPage">
+        <button id="nextPageButton" class="btn btn-basic next">Next &raquo;</button>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="hidden container-fluid" id="feedback">
+    <!-- HTML to handle creating the HIT form -->
+    <form id="mturk_form" method="post" name="mturk_form">
+      <input type='hidden' value='' name='assignmentId' id='assignmentId'/>
+      <input type='hidden' value='' name='submit_filter_data_step2' id='submit_filter_data_step2'/>
+      <input type='hidden' value='' name='annotations_on_load' id='annotations_on_load'/>
+      <input type='hidden' value='' name='submit_annotations' id='submit_annotations'/>
+      <input type='hidden' value='' name='submit_worker_assignment_data' id='submit_worker_assignment_data'/>
+      <input type='hidden' value='' name='submit_logger' id='submit_logger'/>
+
+      <div class="row justify-content-center">
+        <strong>You're almost there!</strong>
+      </div>
+      <br>
+      <div class="row justify-content-center">
+        <h5>Please give us a feedback by answering the following questions and then submit the HIT:</h5>
+      </div>
+      <div class="row justify-content-center">
+        <ul>
+          <li>Was the Pop Quiz difficult?</li>
+          <li>Was it easy to understand what the task is about?</li>
+          <li>Were the instructions clear? If not, what exactly was not clear?</li>
+          <li>Were the relations easy to identify?</li>
+          <li>Is there any other feedback that could help us to improve the task?</li>
+        </ul>
+      </div>
+
+      <div class="row justify-content-center" id="feedback-textbox">
+        <textarea name="feedback" style="min-width: 80%" rows=4 placeholder="Please enter your feedback here..."></textarea>
+      </div>
+      
+      <div class="row justify-content-center">
+        <!-- HTML to handle submitting the HIT -->
+        <button id="submitButton" class="btn btn-warning btn-lg btn-block" type="submit" value="Submit">Finish and Submit HIT</button>
+      </div>
+    </form>
+
+    <div class="row justify-content-center">
+      <button id="previousPageButton-feedback" class="btn btn-basic">&laquo; Previous</button>
+    </div>
+
+  </div>
+
+
+  <!-- Certainty Modal -->
+  <div class="modal fade" id="certaintyModal" tabindex="-1" role="dialog" aria-labelledby="certaintyModal" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+      <div class="modal-content">
+        <div id="modal-header" class="modal-header">
+          <h3 class="modal-title" id="exampleModalLongTitle">New Relation</h3>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div id="changeAnnotationType">
+            <p class="font-weight-bold">Change relation type:</p>
+            <div id="changeAnnotationType-buttons"></div>
+          </div>
+
+          <p class="font-weight-bold" style="margin-top: 6px;">Please indicate how certain you are that this relation is correct:</p>
+
+          <div id="certaintyRadioButtons">
+            <ul class='likert'>
+              <li>
+                <input type="radio" name="likert" value="not_certain">
+                <label>Not certain at all</label>
+              </li>
+              <li>
+                <input type="radio" name="likert" value="more_or_less_certain">
+                <label>More or less certain</label>
+              </li>
+              <li>
+                <input type="radio" name="likert" value="very_certain">
+                <label>Very Certain</label>
+              </li>              
+            </ul>
+          </div>
+
+          <div id="keywordSelection-wrapper">
+            <p id="keywordSelection-title" class="font-weight-bold" style="margin-top: 6px;">Please select those words which made you decide to do this annotation:</p>
+
+            <div class="container">
+              <div class="row">
+                <div class="col">
+                  <p id="selection1title"><i><u>Selection 1:</u></i></p>
+                  <div id="keywordSelection_1"></div>
+                </div>
+                <div class="col d-flex justify-content-center" id="switchSelectedAnnotations-wrapper">
+                  <button type='button' class='close switchSelectedAnnotations' aria-label='Close'><span class='switchSelections' aria-hidden='true'>
+                    <i class="fas fa-exchange-alt"></i>
+                  </span></button>
+                </div>
+                <div class="col">
+                  <p id="selection2title"><i><u>Selection 2:</u></i></p>
+                  <div id="keywordSelection_2"></div>
+                </div>
+              </div>
+            </div>
+            
+          </div>
+          
+          <p class="font-weight-bold">Please specify what lead you to the decision to annotate these words / this sentence:
+            <input id="certaintyModalInput" class="form-control" type="text" placeholder="Please specify in your own words...">
+          </p>
+
+        </div>
+        <div class="modal-footer">
+          <div id="deleteAnnotation-wrapper" class="mr-auto">
+            <button type="button" class="btn btn-danger mr-auto deleteRelation" >Delete this Relation</button>
+          </div>
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+          <div id="saveAnnotationWrapper" class="tooltip-wrapper disabled" title="All inputs are required to save the relation.">
+            <button id="saveAnnotation" type="button" class="btn btn-primary" disabled>Save Relation</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+
+
+</body>
+
+<script>
+
+
+
+
+  $("button#smallerTextButton").on("click", function() {
+    let oldSize = parseInt($("#textToAnnotate").css('font-size').replace('px', ''));
+    let oldSizeTable = parseInt($("#relationsTable tbody tr td").css('font-size'));
+    let newSize = (oldSize-2) + "px";
+    let newSizeTable = (oldSizeTable-2) + "px";
+    let newSizeEditAnnotationIcon = (oldSize+6) + "px";
+    $("#textToAnnotate").css("fontSize", newSize);
+    $(".table td, .table th").css("fontSize", newSizeTable);
+    $(".editAnnotationIcon").css("fontSize", newSizeEditAnnotationIcon);
+    //disable button if min font-size is set
+    if (oldSize < 8) {
+      $('button#smallerTextButton').prop("disabled", true);
+    }
+    //enable button for bigger text
+    $('button#biggerTextButton').prop("disabled", false);
+  });
+  
+  
+  
+  $("button#biggerTextButton").on("click", function() {
+    let oldSize = parseInt($("#textToAnnotate").css('font-size').replace('px', ''));
+    let oldSizeTable = parseInt($("#relationsTable tbody tr td").css('font-size'));
+    let newSize = (oldSize+2) + "px";
+    let newSizeTable = (oldSizeTable+2) + "px";
+    let newSizeEditAnnotationIcon = (oldSize+10) + "px";
+    $("#textToAnnotate").css("fontSize", newSize);
+    $(".table td, .table th").css("fontSize", newSizeTable);
+    $(".editAnnotationIcon").css("fontSize", newSizeEditAnnotationIcon);
+    //disable button if max font-size is set
+    if (oldSize > 50) {
+      $('button#biggerTextButton').prop("disabled", true);
+    }
+    //enable button for smaller text
+    $('button#smallerTextButton').prop("disabled", false);
+  });
+
+
+  function editAnnotation(idToEdit) {
+    // EDIT relation
+
+    window.modalMode = 'EditAnnotation';
+
+    // clear certainty modal radio button and input text
+    $("#certaintyRadioButtons input:radio:checked").prop("checked", false);
+    $('#certaintyModalInput').val("");
+    // remove all red borders
+    $("#certaintyRadioButtons").css("border", "");
+    $("#keywordSelection_1").css("border", "");
+    $("#keywordSelection_2").css("border", "");
+    $("#certaintyModalInput").css("border", "");
+    // unhide delete button
+    $("#deleteAnnotation-wrapper").removeClass("hidden");
+    // unhide changeAnnotationType buttons
+    $("#changeAnnotationType").removeClass("hidden");
+    // add buttons to give worker the chance to change the annotation_type
+    $("#changeAnnotationType-buttons").empty();
+    
+
+    // set text of save annotation button
+    $("#saveAnnotation").text("Save Changes");
+
+    // set id of delete button
+    $("#deleteAnnotation-wrapper button").attr("id", idToEdit);
+
+
+    // loop through all already existing annotations to load content of annotation to edit
+
+    let relation_annotation_to_edit = window.relation_annotations[window.paragraphNumber][idToEdit];
+
+
+    // Set global values. This is needed to commit the changes. After worker is done editing the annotation will be deleted and saved as a new annotation including the changes.
+    window.currentlySelectedAnnotations = relation_annotation_to_edit[0];
+
+    // then set values used to fill the modal
+    var relation_type = relation_annotation_to_edit[0].relation_type;
+    var annotation_certainty = relation_annotation_to_edit[1];
+    var annotation_inputText = relation_annotation_to_edit[2];
+    var annotation_keywords = relation_annotation_to_edit[3];
+
+
+    // loop through all relation types and remove borders to "dis-select" them
+    let allAnnotationButtonsExcludingExampleButtons = $('#relationButtons > button').not('button.relationInfoButton');
+    $.each(allAnnotationButtonsExcludingExampleButtons, function(id, token) {
+      let annotationButton = $(token).clone();
+      $(annotationButton).css("margin-right", "5px");
+      $(annotationButton).css("border", "4px solid white");
+      $(annotationButton).prop("disabled",false);
+      $("#changeAnnotationType-buttons").append(annotationButton);
+    });
+    
+    // highlight the currently selected relation type
+    $("#changeAnnotationType-buttons #" + relation_type).css("border", "4px solid orange");
+
+    window.pressedRelationAnnotationButton = relation_type;
+    let annotationType_displayName = $("#" + relation_type).html();
+
+    // first remove all classes and then add class to modalheader for css styling reasons
+    $(".modal-header").removeClass().addClass("modal-header").addClass(window.pressedRelationAnnotationButton);
+    // then extend the modal header text
+    let headerText = "Edit relation" + ": <u><b>" + annotationType_displayName + "</b></u>";
+    $("#exampleModalLongTitle").html(headerText);
+
+
+    // load modal content
+    $(":radio[value=" + annotation_certainty + "]").prop("checked", true);
+    $('#certaintyModalInput').val(annotation_inputText);
+
+    // load annotation to display all tokens as possible keywords
+    var keywordSelectionDIV_1 = $('#keywordSelection_1');
+    var keywordSelectionDIV_2 = $('#keywordSelection_2');
+    keywordSelectionDIV_1.empty();
+    keywordSelectionDIV_2.empty();
+    
+
+    if ((Math.abs(currentlySelectedAnnotations.annotation_1.end - currentlySelectedAnnotations.annotation_1.start) < 1) && (Math.abs(currentlySelectedAnnotations.annotation_2.end - currentlySelectedAnnotations.annotation_2.start) < 1)) {
+      // hide keywords section title since the selected annotation only contain one token
+      $("#keywordSelection-title").addClass("hidden");
+    }
+    else {
+      // unhide keywordSelection-title
+      $("#keywordSelection-title").removeClass("hidden");
+    }
+        
+
+    let annotated_tokens_1 = $("#textToAnnotate #" + relation_annotation_to_edit[0].annotation_1.start).nextUntil("#textToAnnotate #" + relation_annotation_to_edit[0].annotation_1.end).addBack().next().addBack().clone();
+    let annotated_tokens_2 = $("#textToAnnotate #" + relation_annotation_to_edit[0].annotation_2.start).nextUntil("#textToAnnotate #" + relation_annotation_to_edit[0].annotation_2.end).addBack().next().addBack().clone();
+
+    $.each(annotated_tokens_1, function(nr, annotatedTokenSpan) {
+      if (parseFloat(annotatedTokenSpan.id) % 1 == 0) {
+        keywordSelectionDIV_1.append($(annotatedTokenSpan));
+      }
+    });
+
+    $.each(annotated_tokens_2, function(nr, annotatedTokenSpan) {
+      if (parseFloat(annotatedTokenSpan.id) % 1 == 0) {
+        keywordSelectionDIV_2.append($(annotatedTokenSpan));
+      }
+    });
+
+
+    keywordSelectionDIV_1.children().wrap( "<a class='keywordSelectionButton'></a>" );
+    keywordSelectionDIV_2.children().wrap( "<a class='keywordSelectionButton'></a>" );
+
+    $(".keywordSelectionButton span").removeClass();
+
+
+    // loop through selected keywords to highlight the ones which were selected by the worker
+    for (var j = annotation_keywords.keywordSelection_1.length -1; j >= 0; j--) {
+      let keyword_parent =$("#keywordSelection_1 #" + annotation_keywords.keywordSelection_1[j] + "").parent();
+      $(keyword_parent).addClass("keywordSelectionButton-selected");
+    }
+    for (var j = annotation_keywords.keywordSelection_2.length -1; j >= 0; j--) {
+      let keyword_parent =$("#keywordSelection_2 #" + annotation_keywords.keywordSelection_2[j] + "").parent();
+      $(keyword_parent).addClass("keywordSelectionButton-selected");
+    }
+
+
+    // if one of the annotations only contains one token then autoselect it
+    if (Math.abs(currentlySelectedAnnotations.annotation_1.end - currentlySelectedAnnotations.annotation_1.start) < 1) {
+      $("#keywordSelection_1 #" + currentlySelectedAnnotations.annotation_1.start).parent().addClass("keywordSelectionButton-selected");
+      // remove hover css classes
+      $("#keywordSelection_1 .keywordSelectionButton-selected").hover(function() {
+        $(this).css({"cursor":"default", "background-color":"orange"});
+        $(this).addClass("autoselected");
+      });
+    }
+
+    if (Math.abs(currentlySelectedAnnotations.annotation_2.end - currentlySelectedAnnotations.annotation_2.start) < 1) {
+      $("#keywordSelection_2 #" + currentlySelectedAnnotations.annotation_2.start).parent().addClass("keywordSelectionButton-selected");
+      // remove hover css classes
+      $("#keywordSelection_2 .keywordSelectionButton-selected").hover(function() {
+        $(this).css({"cursor":"default", "background-color":"orange"});
+        $(this).addClass("autoselected");
+      });
+    }
+  
+
+    // open the modal
+    $('#certaintyModal').modal({
+      keyboard: false
+    });
+
+
+  }
+
+
+
+  function deleteAnnotation(IdToDelete) {
+    // this function deletes a relation annotation with a specific ID.
+    // remove the corresponding row from the table and also remove the relation from the global object which contains all the relations
+    removeRowFromAnnotationRelationsTable(IdToDelete, window.paragraphNumber);
+
+    logger = logger.concat(Date.now(), "/Delete relation. id=", IdToDelete, "//");
+    
+    updateWorkerData();
+    
+  };
+
+
+  function deleteAnnotationFILTERStep2(IdToDelete) {
+    // this function deletes a relation annotation with a specific ID.
+    // remove the corresponding row from the table and also remove the relation from the global object which contains all the relations
+    removeRowFromAnnotationRelationsTableFILTERStep2(IdToDelete);
+
+    logger = logger.concat(Date.now(), "/Delete FILTER (Step 2) relation. id=", IdToDelete, "//");
+    
+    updateWorkerData();
+    
+  };
+
+
+  function getNumberOfFinishPage() {
+    return Object.keys(({{text_to_annotate|tojson}})).length
+  }
+
+  function getPageState(pageNumber) {
+    let numberOfFinishPage = getNumberOfFinishPage();
+    if (pageNumber == -1) {
+      return "instructionsPage"
+    }
+    else if (pageNumber == numberOfFinishPage) {
+      return "finishPage"
+    }
+    else {
+      return "annotationPage"
+    }
+    
+  };
+  
+
+  function updateTextSize() {
+    // update the size of the new table row content and the editIcon to match the current font size in case it was changed by the worker
+    let currentSize = parseInt($("#textToAnnotate").css('font-size').replace('px', ''));
+    let currentSizeTable = parseInt($(".table td").css('font-size').replace('px', ''));
+    let currentSizeEditAnnotationIcon = (currentSize+8) + "px";
+
+    $(".table td, .table th").css("fontSize", currentSizeTable);
+    $(".editAnnotationIcon").css("fontSize", currentSizeEditAnnotationIcon);
+
+  }
+
+  function disableRelationButtons() {
+    // disable annotation buttons
+    $('#relationButtons > button').not( "#relationButtons .relationInfoButton" ).prop("disabled",true);
+  };
+
+  function enableRelationButtons() {
+    // disable annotation buttons
+    $('#relationButtons > button').not( "#relationButtons .relationInfoButton" ).prop("disabled",false);
+  };
+
+
+  </script>
+
+  <script>
+
+    $("button#startAnnotation").click(function() {
+      jumpToPage(getNewParagraphNumber(-1));
+      updateWorkerData();
+    });
+
+    
+    $("button#nextPageButton").click(function() {
+      jumpToPage(getNewParagraphNumber(1));
+      updateWorkerData();
+    });
+    
+    $("button#previousPageButton").click(function() {
+      jumpToPage(getNewParagraphNumber(0));
+      updateWorkerData();
+    });
+
+    
+    $("button#previousPageButton-feedback").click(function() {
+      jumpToPage(getNewParagraphNumber(0));
+      updateWorkerData();
+      });
+
+    $("button#previousPageButtonFILTERStep2").click(function() {
+      jumpToPage(getNewParagraphNumber(0));
+      updateWorkerData();
+    });
+
+    $("button#checkFilterAnswerStep2").click(function() {
+      // the worker clicked on the "Check" button to see whether his annotation is correct
+
+      // first of all, remove all currently visible alerts
+      closeAllAlerts();
+
+      // add the current annotation to the tried parts to be able to keep track of the different attempts made by this worker
+      addCurrentAnnotationsTo_filterStep2_tried_parts();
+
+      // scroll to the top of the page to make sure that worker sees the displayed hint
+      window.scrollTo(0, 0);
+
+      var maxNrOfWrongAttemptsUntilSolutionIsShown = {{filter_attempts_before_revealing_solution}};
+      
+      // get the solution for the current question
+      var solution = {{filter_questions_step2|tojson}}[current_filter_question_id]['solution'];
+      
+
+      answerIsCorrect = checkIfAnswerIsCorrect(window.filterData_step2.currentlyAnnotatedRelations, solution);
+      
+      if (answerIsCorrect) {
+        // question was answered correctly
+        // mark answer for the current question as correct
+        markFilterStep2AsCorrect(solution);
+        // clear current worker annotation
+        clearCurrentFilterStep2Selection();
+        // and continue to the next question
+        // jump to first paragraph of annotation page. If filter (Step 2) is not passed, user will automatically land on filter (Step 2) page again but with next example.
+        jumpToPage(0);
+      }
+      else {
+        // answer is wrong
+        
+        
+        
+        // for final system: if max attempts have been reached: tell worker to finish because filter step 2 has been failed
+
+        if (isTotalNumberOfWrongAttemptsReached()) {
+          // the worker already did too many attempts, therefore filter (Step 2) is failed!
+          // remove all currently visible alerts
+          closeAllAlerts();
+
+          // hide previous button
+          $("#previousPageButton-feedback").addClass("hidden");
+
+          // then jump to finish page
+          jumpToPage(getNumberOfFinishPage());
+          let alert_message = `
+          <div id="alert-danger-nomoreattempts" class="alert alert-danger alert-dismissible fade show" role="alert" style="display: none;">
+            <h5 class="alert-heading">No more attempts!</h5>
+            You do not have any attempts left. For this reason you cannot continue working on this task. Please press the submit button to finish. Thank you for your participation. We will compensate you for the invested time in completing this pop quiz.
+
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          `
+          // prepend alert to filter-alerts DIV to make sure that the alert is showed at the top of the page
+          $('#filter-alerts').prepend(alert_message);
+          $('#alert-danger-nomoreattempts').toggle("slide:right");
+
+
+        }
+        else {
+          // the annotation is wrong but the worker did not reach to max amount of attempts
+          console.log("max attempts not reached yet.")
+          
+          
+
+
+
+          var thisQuestionsNrOfWrongAttempts = getThisQuestionsNrOfWrongAttempts();
+          var all_worker_annotations = Object.values(window.filterData_step2['tried_parts'][current_filter_question_id]['annotations']);
+          var worker_did_zero_annotations_in_all_attempts = all_worker_annotations.every((el) => {
+            return jQuery.isEmptyObject(el);
+          });
+          // returns true if the worker has not tried to annotate anything even once. Therefore, do not show the solution yet but tell him to annotate something even if max attempts is already reached.
+
+
+          if (thisQuestionsNrOfWrongAttempts >= maxNrOfWrongAttemptsUntilSolutionIsShown && !worker_did_zero_annotations_in_all_attempts) {
+            // the amount of max wrong attempts is reached and the worker tried to annotate something at least once, therefore show the worker the correct answer
+            showCorrectSolution(current_filter_question_id, maxNrOfWrongAttemptsUntilSolutionIsShown);
+          }
+          else {
+            // show an alert, telling the worker that the answer is wrong
+            alert_wrongAnnotation();
+            // the amount of max wrong attempts is not reached yet, therefore show the worker a hint
+            showFilterStep2Hint(solution);
+          }
+
+          // log answer to heroku log
+          submit_data_wrongfilter2answer();
+
+          // clear current worker annotation
+          clearCurrentFilterStep2Selection();
+          // reload text div to make sure that no span is annotated anymore
+          displayTextToAnnotateFILTERSTEP2();
+          // reload the relation table to make sure that no relation is listed anymore
+          reloadAnnotationRelationsTableFILTERSTEP2();
+          // reset the worker selection
+          resetCurrentlySelectedAnnotations();
+        }
+      }
+
+      updateWorkerData();
+
+    });
+
+    $(document).on("click", "button#skipQuestionFilterStep2", function(){
+      // click event of skipQuestionFilterStep2-button is nested in a document click event listener since this buttons is created dynamically when a worker had too many attmpts
+      // worker had too many wrong attempts and pressed the skip button
+
+      addCurrentAnnotationsTo_filterStep2_tried_parts();
+
+      // scroll to the top of the page to make sure that worker sees the displayed hint
+      window.scrollTo(0, 0);
+      // mark this question as correct
+      markFilterStep2AsCorrect("skippedPreviousQuestion");
+      // clear current worker annotation
+      clearCurrentFilterStep2Selection();
+      // and continue to the next question
+      // jump to first paragraph of annotation page. If filter (Step 2) is not passed, user will automatically land on filter (Step 2) page again but with next example.
+      jumpToPage(0);
+
+      updateWorkerData();
+    });
+
+    function checkIfAnswerIsCorrect(worker_answer, solution) {
+      // check if the workers answer for the currently displayed filter Step 2 question is correct
+
+      switch (current_filter_question_id) {
+        case "1":
+        case "2":
+        case "3":
+        case "4":
+        case "5":
+        case "6":
+        case "8":
+        case "9":
+          let worker_answer_keys = Object.keys(worker_answer);
+          if (worker_answer_keys.length != 1) {
+            // worker did not annotate the correct amount of relations, therefore return false immediately
+            return false;
+          }
+          let worker_answer_annotation = worker_answer[worker_answer_keys[0]];
+          return equalRelationAnnotations(worker_answer_annotation, solution);
+
+          break;
+        case "7":
+          // question 7 is an exception, because there are 3 relations to be identified of which one is a 'typeofsame' which is why there are several correct possibilities
+
+          // allSolutionRelationsAnnotatedByWorker is true if for at least one of the possible solutions all relations exist in the worker answer
+          var all_worker_answers = Object.values(worker_answer);
+          var allSolutionRelationsAnnotatedByWorker = solution.some(function(sol) {
+            // check every solution
+            var all_relations_exist_in_worker_answer = sol.every(function(sol_relation) {
+              // now check every annotation of this solution: it should exist also in the workers answer.
+              var this_relation_exists_in_worker_answer = all_worker_answers.some(function(worker_relation) {
+                return equalRelationAnnotations(sol_relation, worker_relation);
+              });
+              return this_relation_exists_in_worker_answer;
+            });
+
+            return all_relations_exist_in_worker_answer;
+          });
+
+          // every annotation of the worker must be in at least one of the possible solutions
+          var noWorkerRelationWrong = all_worker_answers.every(function(worker_relation) {
+            // check for every relation annotated by the worker
+            // if in some of the possible solutions
+            var some_solution = solution.some(function(sol) {
+              // there is some identical relation
+              var some_relation_in_some_solution = sol.some(function(sol_relation) {
+                return equalRelationAnnotations(sol_relation, worker_relation);
+              });
+              return some_relation_in_some_solution;
+            });
+            return some_solution;
+
+          });
+
+          if (allSolutionRelationsAnnotatedByWorker && noWorkerRelationWrong) {
+            return true;
+          }
+          else {
+            return false;
+          }
+          break;
+      }
+
+    }
+
+    function equalRelationAnnotations(worker_answer_annotation, solution) {
+      // check if the relation annotated by the worker is correct
+      if (worker_answer_annotation["relation_type"] != solution["relation_type"]) {
+        // annotation is not correct type
+        return false;
+      }
+      else {
+        // annotation is correct type
+        if (worker_answer_annotation["relation_type"] == "supports") {
+          // type is 'supports' so direction has to be correct
+          if (componentsAreTheSame(worker_answer_annotation["annotation_1"], solution["annotation_1"]) && componentsAreTheSame(worker_answer_annotation["annotation_2"], solution["annotation_2"])) {
+            // also both components (between which the relation exists) are correct and direction of the relation is also correct. Answer is correct!
+            return true;
+          }
+          else {
+            // at least one of the two components (between which the relation exists) is not correct. Answer is NOT correct!
+            return false;
+          }
+        }
+        else {
+          // type is not 'supports' so direction does not have to be correct
+          let same_components = componentsAreTheSame(worker_answer_annotation["annotation_1"], solution["annotation_1"]) && componentsAreTheSame(worker_answer_annotation["annotation_2"], solution["annotation_2"]);
+          let same_components_reverse = componentsAreTheSame(worker_answer_annotation["annotation_1"], solution["annotation_2"]) && componentsAreTheSame(worker_answer_annotation["annotation_2"], solution["annotation_1"]);
+          if (same_components || same_components_reverse) {
+            // also both components (between which the relation exists) are correct (in either direction). Answer is correct!
+            return true;
+          }
+          else {
+            // at least one of the two components (between which the relation exists) is not correct. Answer is NOT correct!
+            return false;
+          }
+        }
+      }
+    }
+
+    function componentsAreTheSame(component1, component2) {
+      // check if two components have the same start and end token IDs
+      if (component1["start"] == component2["start"] && component1["end"] == component2["end"]) {
+        // start and end of both components are the same, therefore return true
+        return true;
+      }
+      else {return false;}
+    }
+
+    function checkIfTwoArraysAreEqual(a, b) {
+      if (a === b) return true;
+      if (a == null || b == null) return false;
+      if (a.length !== b.length) return false;
+
+      // If you don't care about the order of the elements inside
+      // the array, you should sort both arrays here.
+      // Please note that calling sort on an array will modify that array.
+      // you might want to clone your array first.
+
+      for (var i = 0; i < a.length; ++i) {
+        if (a[i] !== b[i]) return false;
+      }
+      return true;
+    }
+
+    function getThisQuestionsNrOfWrongAttempts() {
+      return window.filterData_step2['tried_parts'][current_filter_question_id]['nr_of_tries'];
+    }
+
+    function showCorrectSolution(current_filter_question_id) {
+      // worker has tried to annotate something and has already 8 or more attempts, therefore, show the worker the correct solution
+
+      // set 'solution_revealed' to true for this question
+      window.filterData_step2['tried_parts'][current_filter_question_id]['solution_revealed'] = true;
+    
+      var nr_of_attempts = getThisQuestionsNrOfWrongAttempts();
+      switch (current_filter_question_id) {
+        case "1":
+          var correct_solution = `In the text given below, the argument component 
+          <span class="data firstToken lastToken">1 </span><span class="annotationName annotationName-data"> Data </span>
+          <b>supports</b>
+          the argument component 
+          <span class="backgroundclaim firstToken">less </span><span class="backgroundclaim">and </span><span class="backgroundclaim">less </span><span class="backgroundclaim">researchers </span><span class="backgroundclaim">publish </span><span class="backgroundclaim">their </span><span class="backgroundclaim">code </span><span class="backgroundclaim">in </span><span class="backgroundclaim">the </span><span class="backgroundclaim">field </span><span class="backgroundclaim">of </span><span class="backgroundclaim">natural </span><span class="backgroundclaim">language </span><span class="backgroundclaim">processing </span><span class="backgroundclaim lastToken">recently </span><span class="annotationName annotationName-backgroundclaim"> Background Claim </span>
+          .`;
+          break;
+        case "2":
+          var correct_solution = `In the text given below, the argument component 
+          <span class="backgroundclaim firstToken">the </span><span class="backgroundclaim">quality </span><span class="backgroundclaim">of </span><span class="backgroundclaim">a </span><span class="backgroundclaim">scientific </span><span class="backgroundclaim">paper </span><span class="backgroundclaim">depends </span><span class="backgroundclaim">on </span><span class="backgroundclaim">the </span><span class="backgroundclaim">university </span><span class="backgroundclaim">the </span><span class="backgroundclaim">authors </span><span class="backgroundclaim">are </span><span class="backgroundclaim">associated </span><span class="backgroundclaim lastToken">with </span><span class="annotationName annotationName-backgroundclaim"> Background Claim </span>
+          <b>contradicts</b>
+          the argument component 
+          <span class="ownclaim firstToken">the </span><span class="ownclaim">quality </span><span class="ownclaim">of </span><span class="ownclaim">a </span><span class="ownclaim">paper </span><span class="ownclaim">mainly </span><span class="ownclaim">depends </span><span class="ownclaim">on </span><span class="ownclaim">the </span><span class="ownclaim">journal </span><span class="ownclaim">which </span><span class="ownclaim">published </span><span class="ownclaim lastToken">it </span><span class="annotationName annotationName-ownclaim"> Own Claim </span>
+          .`;
+          break;
+        case "3":
+          var correct_solution = `In the text given below, the argument component 
+          <span class="ownclaim firstToken">the </span><span class="ownclaim">accuracy </span><span class="ownclaim">of </span><span class="ownclaim">results </span><span class="ownclaim">correlates </span><span class="ownclaim">with </span><span class="ownclaim">the </span><span class="ownclaim">number </span><span class="ownclaim">of </span><span class="ownclaim">possible </span><span class="ownclaim lastToken">answers </span><span class="annotationName annotationName-ownclaim"> Own Claim </span>
+          and the argument component 
+          <span class="ownclaim firstToken">with </span><span class="ownclaim">the </span><span class="ownclaim">clarity </span><span class="ownclaim">of </span><span class="ownclaim">the </span><span class="ownclaim">posted </span><span class="ownclaim lastToken">question </span><span class="annotationName annotationName-ownclaim"> Own Claim </span>
+          are <b>parts of the same</b> argument
+          .`;
+          break;
+        case "4":
+          var correct_solution = `In the text given below, the argument component 
+          <span class="data firstToken">Fig </span><span class="data">. </span><span class="data lastToken">6 </span><span class="annotationName annotationName-data"> Data </span>
+          <b>supports</b>
+          the argument component 
+          <span class="ownclaim firstToken">our </span><span class="ownclaim">implementation </span><span class="ownclaim">of </span><span class="ownclaim">the </span><span class="ownclaim">fall </span><span class="ownclaim">controller </span><span class="ownclaim">can </span><span class="ownclaim">handle </span><span class="ownclaim">falls </span><span class="ownclaim">in </span><span class="ownclaim">any </span><span class="ownclaim">direction </span><span class="ownclaim">, </span><span class="ownclaim">responding </span><span class="ownclaim">in </span><span class="ownclaim">different </span><span class="ownclaim">ways </span><span class="ownclaim">to </span><span class="ownclaim">falls </span><span class="ownclaim">in </span><span class="ownclaim">different </span><span class="ownclaim lastToken">directions </span><span class="annotationName annotationName-ownclaim"> Own Claim </span>
+          .`;
+          break;
+        case "5":
+          var correct_solution = `In the text given below, the argument component 
+          <span class="backgroundclaim firstToken">this </span><span class="backgroundclaim">approach </span><span class="backgroundclaim">results </span><span class="backgroundclaim">in </span><span class="backgroundclaim">more </span><span class="backgroundclaim">accurately </span><span class="backgroundclaim">animated </span><span class="backgroundclaim">effects </span><span class="backgroundclaim">in </span><span class="backgroundclaim">comparison </span><span class="backgroundclaim">to </span><span class="backgroundclaim">its </span><span class="backgroundclaim">geometric </span><span class="backgroundclaim lastToken">counterpart </span><span class="annotationName annotationName-backgroundclaim"> Background Claim </span>
+          <b>contradicts</b>
+          the argument component 
+          <span class="backgroundclaim firstToken">it </span><span class="backgroundclaim">is </span><span class="backgroundclaim">actually </span><span class="backgroundclaim">never </span><span class="backgroundclaim">used </span><span class="backgroundclaim">nowadays </span><span class="backgroundclaim">since </span><span class="backgroundclaim">the </span><span class="backgroundclaim">results </span><span class="backgroundclaim">are </span><span class="backgroundclaim">not </span><span class="backgroundclaim">easily </span><span class="backgroundclaim">interpretable </span><span class="backgroundclaim">and </span><span class="backgroundclaim">therefore </span><span class="backgroundclaim">can </span><span class="backgroundclaim">not </span><span class="backgroundclaim">be </span><span class="backgroundclaim">used </span><span class="backgroundclaim">for </span><span class="backgroundclaim">applications </span><span class="backgroundclaim">in </span><span class="backgroundclaim">a </span><span class="backgroundclaim">real </span><span class="backgroundclaim lastToken">environment </span><span class="annotationName annotationName-backgroundclaim"> Background Claim </span>
+          .`;
+          break;
+        case "6":
+          var correct_solution = `In the text given below, the argument component 
+          <span class="ownclaim firstToken">The </span><span class="ownclaim">dynamic </span><span class="ownclaim">properties </span><span class="ownclaim">of </span><span class="ownclaim">both </span><span class="ownclaim lastToken">models </span><span class="annotationName annotationName-ownclaim"> Own Claim </span>
+          and the argument component 
+          <span class="ownclaim firstToken">are </span><span class="ownclaim">taken </span><span class="ownclaim">from </span><span class="ownclaim">the </span><span class="ownclaim">biomechanics </span><span class="ownclaim">literature </span><span class="ownclaim">and </span><span class="ownclaim">correspond </span><span class="ownclaim">to </span><span class="ownclaim">a </span><span class="ownclaim">fullyfleshed </span><span class="ownclaim">adult </span><span class="ownclaim lastToken">male </span><span class="annotationName annotationName-ownclaim"> Own Claim </span>
+          are <b>parts of the same</b> argument
+          .`;
+          break;
+        case "7":
+          var correct_solution = `In the text given below, ... <ul>
+            <li>the argument component 
+              <span class="backgroundclaim firstToken">A </span><span class="backgroundclaim">3 </span><span class="backgroundclaim">DOF </span><span class="backgroundclaim">ball-juggling </span><span class="backgroundclaim">robot </span><span class="backgroundclaim">is </span><span class="backgroundclaim lastToken">described </span><span class="annotationName annotationName-backgroundclaim"> Background Claim </span>
+              and the argument component 
+              <span class="backgroundclaim firstToken">which </span><span class="backgroundclaim">uses </span><span class="backgroundclaim">a </span><span class="backgroundclaim">theory </span><span class="backgroundclaim">of </span><span class="backgroundclaim">behavior </span><span class="backgroundclaim lastToken">composition </span><span class="annotationName annotationName-backgroundclaim"> Background Claim </span>
+              are <b>parts of the same</b> argument
+              .
+            </li>
+            <li>the argument component 
+              <span class="data firstToken lastToken">6 </span><span class="annotationName annotationName-data"> Data </span>
+              <b>supports</b>:
+              <ul>
+                <li>
+                  <i>either</i>: the argument component 
+                  <span class="backgroundclaim firstToken">A </span><span class="backgroundclaim">3 </span><span class="backgroundclaim">DOF </span><span class="backgroundclaim">ball-juggling </span><span class="backgroundclaim">robot </span><span class="backgroundclaim">is </span><span class="backgroundclaim lastToken">described </span><span class="annotationName annotationName-backgroundclaim"> Background Claim </span>,
+                </li>
+                <li>
+                  <i>or</i>: the argument component 
+                  <span class="backgroundclaim firstToken">which </span><span class="backgroundclaim">uses </span><span class="backgroundclaim">a </span><span class="backgroundclaim">theory </span><span class="backgroundclaim">of </span><span class="backgroundclaim">behavior </span><span class="backgroundclaim lastToken">composition </span><span class="annotationName annotationName-backgroundclaim"> Background Claim </span>
+                </li>
+                <small>(both relations are correct since the two components are part of the same argument)</small>.
+              </ul>
+            </li>
+            <li>the argument component 
+              <span class="backgroundclaim firstToken">the </span><span class="backgroundclaim">practicality </span><span class="backgroundclaim">of </span><span class="backgroundclaim">extending </span><span class="backgroundclaim">the </span><span class="backgroundclaim">method </span><span class="backgroundclaim">to </span><span class="backgroundclaim">high-DOF </span><span class="backgroundclaim">dynamic </span><span class="backgroundclaim">models </span><span class="backgroundclaim">of </span><span class="backgroundclaim">human </span><span class="backgroundclaim">motions </span><span class="backgroundclaim">is </span><span class="backgroundclaim lastToken">unclear </span><span class="annotationName annotationName-backgroundclaim"> Background Claim </span>
+              <b>contradicts</b>:
+              <ul>
+                <li>
+                  <i>either</i>: the argument component 
+                  <span class="backgroundclaim firstToken">A </span><span class="backgroundclaim">3 </span><span class="backgroundclaim">DOF </span><span class="backgroundclaim">ball-juggling </span><span class="backgroundclaim">robot </span><span class="backgroundclaim">is </span><span class="backgroundclaim lastToken">described </span><span class="annotationName annotationName-backgroundclaim"> Background Claim </span>,
+                </li>
+                <li>
+                  <i>or</i>: the argument component 
+                  <span class="backgroundclaim firstToken">which </span><span class="backgroundclaim">uses </span><span class="backgroundclaim">a </span><span class="backgroundclaim">theory </span><span class="backgroundclaim">of </span><span class="backgroundclaim">behavior </span><span class="backgroundclaim lastToken">composition </span><span class="annotationName annotationName-backgroundclaim"> Background Claim </span>
+                </li>
+                <small>(both relations are correct since the two components are part of the same argument)</small>.
+              </ul>
+            </li
+          </ul>
+          `;
+          break;
+        case "8":
+          var correct_solution = `In the text given below, the argument component 
+          <span class="ownclaim firstToken">The </span><span class="ownclaim">controllers </span><span class="ownclaim">we </span><span class="ownclaim">used </span><span class="ownclaim">may </span><span class="ownclaim">not </span><span class="ownclaim">completely </span><span class="ownclaim">specify </span><span class="ownclaim">the </span><span class="ownclaim">temporal </span><span class="ownclaim">relations </span><span class="ownclaim">between </span><span class="ownclaim">the </span><span class="ownclaim lastToken">events </span><span class="annotationName annotationName-ownclaim"> Own Claim </span>
+          <b>supports</b>
+          the argument component 
+          <span class="ownclaim firstToken">these </span><span class="ownclaim">relations </span><span class="ownclaim">could </span><span class="ownclaim">further </span><span class="ownclaim">be </span><span class="ownclaim">constrained </span><span class="ownclaim">by </span><span class="ownclaim">other </span><span class="ownclaim lastToken">clauses </span><span class="annotationName annotationName-ownclaim"> Own Claim </span>
+          .`;
+          break;
+        case "9":
+          var correct_solution = `In the text given below, the argument component 
+          <span class="ownclaim firstToken">Deriving </span><span class="ownclaim">controllers </span><span class="ownclaim">from </span><span class="ownclaim">motion-capture </span><span class="ownclaim">data </span><span class="ownclaim">is </span><span class="ownclaim">an </span><span class="ownclaim">exciting </span><span class="ownclaim">but </span><span class="ownclaim">difficult </span><span class="ownclaim lastToken">prospect </span><span class="annotationName annotationName-ownclaim"> Own Claim </span>
+          <b>contradicts</b>
+          the argument component 
+          <span class="backgroundclaim firstToken">some </span><span class="backgroundclaim">progress </span><span class="backgroundclaim">is </span><span class="backgroundclaim">already </span><span class="backgroundclaim">being </span><span class="backgroundclaim">made </span><span class="backgroundclaim">in </span><span class="backgroundclaim">this </span><span class="backgroundclaim lastToken">area </span><span class="annotationName annotationName-backgroundclaim"> Background Claim </span>
+          .`;
+          break;
+      }
+
+      let alert_message = `
+        <div id="alert-danger-showsolution" class="alert alert-danger alert-dismissible" role="alert" style="display: none;">
+          <h6 style="color:red;"><strong>Wrong annotation(s)! Too many (${nr_of_attempts}) attempts.</strong></h6>
+          <strong>For this reason, we provide the correct solution here:</strong>
+          <br>
+          ${correct_solution}
+          <hr>
+          You can either annotate the given text and then continue to the next question by clicking the Check button, or skip this question to directly continue with the next one by clicking this button:
+          <button id="skipQuestionFilterStep2" class="btn btn-success skipbutton">SKIP</button>
+
+          <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        `
+        // prepend alert to filter-alerts DIV to make sure that the alert is showed at the top of the page
+        $('#filter-alerts').prepend(alert_message);
+        $('#alert-danger-showsolution').toggle("slide:right");
+      
+
+    }
+
+    function showFilterStep2Hint(solution) {
+      // depending on the number of attempts a worker already did for the current filter step 2 question, and also depending on whether in this attempt there is no annotation, we show the worker a different hint.
+
+      if (window.filterData_step2['tried_parts'][current_filter_question_id]['nr_of_tries'] > 1 && jQuery.isEmptyObject(filterData_step2.currentlyAnnotatedRelations)) {
+        hint_noAnnotationYet();
+      }
+      else if (window.filterData_step2['tried_parts'][current_filter_question_id]['nr_of_tries'] > 5) {
+        hint_final_exactNumberAndTypeOfAnnotations();
+      }
+      else if (window.filterData_step2['tried_parts'][current_filter_question_id]['nr_of_tries'] > 3) {
+        hint_exactNrOfAnnotations();
+      }
+
+    }
+
+    function alert_wrongAnnotation() {
+      // give the worker a hint, telling him that the answer is wrong
+      let alert_message = `
+        <div id="alert-danger-hint_wrongAnnotation" class="alert alert-danger alert-dismissible fade show" role="alert" style="display: none;">
+          <strong>Wrong annotation(s)!</strong> Please take a look at the instructions again and then try to correctly annotate the given text.
+          <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        `
+      // prepend alert to filter-alerts DIV to make sure that the alert is showed at the top of the page
+      $('#filter-alerts').prepend(alert_message);
+      $('#alert-danger-hint_wrongAnnotation').toggle("slide:right");
+    }
+
+    function hint_noAnnotationYet() {
+      // give the worker a hint, telling him that there is no annotation yet
+
+      let alert_message = `
+      <div id="alert-warning-hint_noAnnotationYet" class="alert alert-warning alert-dismissible" role="alert" style="display: none;">
+        <strong>Hint: No annotation yet!</strong>
+        <br>
+        Please try to correctly annotate the given text and then check your annotation by clicking the Check button.
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      `
+      // prepend alert to filter-alerts DIV to make sure that the alert is showed at the top of the page
+      $('#filter-alerts').prepend(alert_message);
+      $('#alert-warning-hint_noAnnotationYet').toggle("slide:right");
+    }
+
+    function hint_exactNrOfAnnotations() {
+      // give the worker a hint, telling him that there is no annotation yet and that there should be exactly one
+
+      switch (current_filter_question_id) {
+        case "7":
+          var nr_of_relations = "are <b>exactly 3 argumentative relation</b>";
+          break;
+        default:
+          var nr_of_relations = "is <b>exactly one argumentative relation</b>";
+      }
+
+      let alert_message = `
+      <div id="alert-warning-hint_exactNrOfAnnotations" class="alert alert-warning alert-dismissible" role="alert" style="display: none;">
+        <strong>No annotation yet!</strong>
+        <br>
+        <strong>Hint:</strong> In the text given below there ${nr_of_relations} to be annotated.
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      `
+      // prepend alert to filter-alerts DIV to make sure that the alert is showed at the top of the page
+      $('#filter-alerts').prepend(alert_message);
+      $('#alert-warning-hint_exactNrOfAnnotations').toggle("slide:right");
+    }
+
+    function hint_final_exactNumberAndTypeOfAnnotations() {
+      // give the worker a hint, telling him the exact number and type of annotations
+      
+      switch (current_filter_question_id) {
+        case "1":
+          var nr_and_type_of_relations = "<b>one</b> argumentative relation of type <b>Supports</b>.";
+          break;
+        case "2":
+          var nr_and_type_of_relations = "<b>one</b> argumentative relation of type <b>Contradicts</b>.";
+          break;
+        case "3":
+          var nr_and_type_of_relations = "<b>one</b> argumentative relation of type <b>Parts of Same</b>.";
+          break;
+        case "4":
+          var nr_and_type_of_relations = "<b>one</b> argumentative relation of type <b>Supports</b>.";
+          break;
+        case "5":
+          var nr_and_type_of_relations = "<b>one</b> argumentative relation of type <b>Contradicts</b>.";
+          break;
+        case "6":
+          var nr_and_type_of_relations = "<b>one</b> argumentative relation of type <b>'Parts of Same'</b>.";
+          break;
+        case "7":
+          var nr_and_type_of_relations = "... <ul><li>... <b>one</b> argumentative relation of type <b>Parts of Same</b>.</li><li>... <b>one</b> argumentative relation of type <b>Supports</b>.</li><li>... <b>one</b> argumentative relation of type <b>Contradicts</b>.</li></ul>";
+          break;
+        case "8":
+          var nr_and_type_of_relations = "<b>one</b> argumentative relation of type <b>Supports</b>.";
+          break;
+        case "9":
+          var nr_and_type_of_relations = "<b>one</b> argumentative relation of type <b>Contradicts</b>.";
+          break;
+        default:
+      }
+      
+      let alert_message = `
+      <div id="alert-warning-hint_final_exactNumberAndTypeOfAnnotations" class="alert alert-warning alert-dismissible" role="alert" style="display: none;">
+        <strong>Wrong annotation!</strong>
+        <br>
+        <strong>Hint:</strong> The text given below contains exactly ${nr_and_type_of_relations}
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      `
+      // prepend alert to filter-alerts DIV to make sure that the alert is showed at the top of the page
+      $('#filter-alerts').prepend(alert_message);
+      $('#alert-warning-hint_final_exactNumberAndTypeOfAnnotations').toggle("slide:right");
+    }
+
+
+    function addCurrentAnnotationsTo_filterStep2_tried_parts() {
+      // add the current annotation to the tried parts to be able to keep track of the different attempts made by this worker
+      
+      // check if object already exists for this filter part
+      if (!Object.keys(window.filterData_step2['tried_parts']).includes(current_filter_question_id)) {
+        // if it does not exist yet, initialize it
+        window.filterData_step2['tried_parts'][current_filter_question_id] = {'nr_of_tries': 0, 'annotations': [], 'solution_revealed': false};
+      }
+
+      let current_nr_of_tries = window.filterData_step2['tried_parts'][current_filter_question_id]['nr_of_tries'];
+      window.filterData_step2['tried_parts'][current_filter_question_id]['nr_of_tries'] = current_nr_of_tries + 1;
+      window.filterData_step2['tried_parts'][current_filter_question_id]['annotations'].push(window.filterData_step2.currentlyAnnotatedRelations);
+
+    }
+
+    function markFilterStep2AsCorrect(solution) {
+
+      // add name of current filter (Step 2) question to the array which contains all passed filter (Step 2) questions
+      window.filterData_step2.passed_parts.push(current_filter_question_id);
+
+      // remove all currently visible alerts
+      closeAllAlerts();
+
+      // show alert informing user that this annotation was correct
+      let filter_parts_total = (Object.keys({{filter_questions_step2|tojson}}));
+      let filter_parts_passed = window.filterData_step2.passed_parts;
+      let all_filter_parts_passed = checkIfAllQuestionsOfFilterStep2HaveBeenPassed(filter_parts_total, filter_parts_passed);
+      if (!all_filter_parts_passed) {
+        // not all parts of filter (Step 2) have been passed yet
+
+        
+        switch (current_filter_question_id) {
+          // set the message of the alert header depending on how many relations had to be annotated
+          case "7":
+            var message_header = "Good Job! Argumentative relations annotated correctly"
+            break;
+          default:
+            var message_header = "Good Job! Argumentative relation annotated correctly"
+        }
+
+        if (solution == "skippedPreviousQuestion") {
+          var message_header = `Question skipped!`;
+        }
+
+        let alert_message = `
+        <div id="alert-success-annotationcorrect" class="alert alert-success alert-dismissible fade show" role="alert" style="display: none;">
+          <h6>${message_header}!</h6>
+          Please continue with the question which is displayed below.<br>
+          <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        `
+        // prepend alert to filter-alerts DIV to make sure that the alert is showed at the top of the page
+        $('#filter-alerts').prepend(alert_message);
+        $('#alert-success-annotationcorrect').toggle("slide:right");
+      }
+      else {
+        // all parts of filter (Step 2) have been passed!
+        window.filterData_step2.filterPassed = true;
+        
+        // then show alert saying that worker passed the filter (Step 2) and can now start with the real task
+        let alert_message = `
+        <div id="alert-success-filterpassed" class="alert alert-success alert-dismissible fade show" role="alert" style="display: none;">
+          <h5 class="alert-heading">Awesome!</h5>
+          Good work, you answered all questions correctly.
+          However, you still have to finish the task and annotate the paragraphs to get the full reward.
+          <br>
+          Thank you very much for finishing the Pop Quiz. Now you're ready for the real task. :) Please start with the annotation of the three paragraphs.
+          <br>
+          Keep up the good work and also keep in mind that the more components you identify correctly, the higher your bonus payment will be.
+          For good answers we will pay a bonus of <b>$2,80</b> which means that you can make up to <b>$7</b> with this task.
+          <hr>
+          Whenever you need to, you can go back to the instructions or click the <svg width="1em" height="1em"
+            viewBox="0 0 16 16" class="bi bi-info-circle" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+            <path fill-rule="evenodd" d="M8 15A7 7 0 1 0 8 1a7 7 0 0 0 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z" />
+            <path
+              d="M8.93 6.588l-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588z" />
+            <circle cx="8" cy="4.5" r="1" /></svg> buttons to look at some examples.
+
+          <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        `
+        // prepend alert to filter-alerts DIV to make sure that the alert is showed at the top of the page
+        $('#filter-alerts').prepend(alert_message);
+        $('#alert-success-filterpassed').toggle("slide:right");
+      }
+
+    }
+
+    function checkIfAllQuestionsOfFilterStep2HaveBeenPassed(filter_parts_total, filter_parts_passed) {
+      if (filter_parts_passed.length < filter_parts_total.length) {
+        // less questions have been passed than the number of existing questions, therefore return false
+        return false;
+      }
+      // check if really every existing question id is contained in the list filter_parts_passed.
+      // This is to make sure that even if there is e.g. an empty element in the list filter_parts_passed (even though this should not be the case), the filter Step to is not marked as passed to early.
+      var all_parts_passed = filter_parts_total.every((el) => {
+        return filter_parts_passed.indexOf(el) !== -1;
+      });
+      // all_parts_passed is true if filter_parts_total is a subset of filter_parts_passed
+      return all_parts_passed;
+    }
+    
+    function clearCurrentFilterStep2Selection() {
+      // clear the currently annotated relations to make sure that worker has to identify new relation(s) before he can check again
+      window.filterData_step2.currentlyAnnotatedRelations = {};
+    }
+
+    function isTotalNumberOfWrongAttemptsReached() {
+      // define how many WRONG attempts a worker can make
+      var maxAllowedNumberOfWrongAttemptsToPassFilter = {{ability_filter_threshold|tojson}};
+      var totalNumberOfWrongAttempts = 0;
+      // loop trough each filter (Step 2) question and add the nr_of_tries to the totalNumberOfAttempts
+      $.each(window.filterData_step2['tried_parts'], function(index, value) {
+        totalNumberOfWrongAttempts += value['nr_of_tries'];
+      });
+      //decrease totalNumberOfWrongAttempts by the amount of filters that have been passed to make sure that correct attempts are not counted as wrong attempts
+      totalNumberOfWrongAttempts = totalNumberOfWrongAttempts - window.filterData_step2.passed_parts.length;
+      if (totalNumberOfWrongAttempts > maxAllowedNumberOfWrongAttemptsToPassFilter) {
+        return true;
+      }
+      else {
+        // the annotation is wrong but the worker did not reach to max amount of attempts
+        return false;
+      }
+    }
+
+
+    // WHEN CLOSE CLICK HIDE THE ALERT MESSAGE.
+    $(".alert").on("click", function() {
+      // if user clicks on x in top right corner of an alert, close this alert
+      $(this).css("display", "none");
+    })
+
+    function closeAllAlerts() {
+      // close all the open filter (Step 2) page alerts
+      $('#filter-alerts').empty();
+    }
+
+    function getNewParagraphNumber(direction) {
+      if (direction == 0) {
+        window.paragraphNumber -= 1;
+      }
+      else if (direction == 1) {
+        window.paragraphNumber += 1;
+      }
+      else if (direction = -1) {
+        window.paragraphNumber = 0;
+      }
+      
+      return window.paragraphNumber;
+    };
+
+    function updateWorkerData() {
+      updateMTurkForm();
+      setAllLocalStorageElements();
+    }
+
+    function updateMTurkForm() {
+      // set the values of the form inputs so that the data is saved in mturk when user submits the assignment
+      $("#submit_annotations").val(JSON.stringify(window.relation_annotations));
+      $("#submit_filter_data_step2").val(JSON.stringify(window.filterData_step2));
+      $("#submit_worker_assignment_data").val(JSON.stringify({{worker_assignment_data|tojson}}));
+      $("#submit_logger").val(window.logger);
+    }
+
+    function setAllLocalStorageElements() {
+
+      setLocalStorageElement("lastVisitedPage", (window.paragraphNumber).toString());
+      setLocalStorageElement("informedConsentCheckBox", ($("#informedConsentCheckBox").is(':checked')).toString());
+      setLocalStorageElement("filterData_step2", JSON.stringify(window.filterData_step2));
+      setLocalStorageElement("relation_annotations", JSON.stringify(window.relation_annotations));
+      setLocalStorageElement("feedback", $("textarea[name='feedback']").val());
+      setLocalStorageElement("logger", window.logger);
+      setLocalStorageElement("timestamp", Date.now());
+
+    }
+
+    function loadAllLocalStorageElements() {
+
+      if (getLocalStorageElement("lastVisitedPage") === null) {
+        window.paragraphNumber = -1;
+      }
+      else {
+        window.paragraphNumber = parseInt(getLocalStorageElement("lastVisitedPage"));
+      }
+
+      if (getLocalStorageElement("informedConsentCheckBox") === null) {
+        window.informedConsentCheckBox = false;
+      }
+      else {
+        window.informedConsentCheckBox = (getLocalStorageElement("informedConsentCheckBox") == 'true');
+      }
+
+      if (getLocalStorageElement("filterData_step2") === null) {
+        window.filterData_step2 = {'filterPassed': false, 'passed_parts': [], 'tried_parts': {}, 'currentlyAnnotatedRelations': {}};
+      }
+      else {
+        window.filterData_step2 = JSON.parse(getLocalStorageElement("filterData_step2"));
+      }
+
+      if (getLocalStorageElement("relation_annotations") === null) {
+        let number_of_paragraphs_to_annotate = Object.keys({{text_to_annotate|tojson}}).length;
+        window.relation_annotations = {};
+        for (var i = 0; i < number_of_paragraphs_to_annotate; i++) {
+          window.relation_annotations[i] = {};
+        }
+      }
+      else {
+        window.relation_annotations = JSON.parse(getLocalStorageElement("relation_annotations"));
+      }
+
+      if (getLocalStorageElement("feedback") === null) {
+        window.feedback = "";
+      }
+      else {
+        window.feedback = getLocalStorageElement("feedback");
+      }
+
+      if (getLocalStorageElement("logger") === null) {
+        window.logger = "";
+      }
+      else {
+        window.logger = getLocalStorageElement("logger");
+      }
+
+    }
+
+
+    function setLocalStorageElement(name, value) {
+      // only set the local storage item if worker is not in preview mode and if browser supports local storage
+      let browserSupportsLocalStorage = (typeof(Storage) !== "undefined");
+      let workerNotInPreviewMode = ({{preview_mode}} != true);
+      if (browserSupportsLocalStorage && workerNotInPreviewMode) {
+        let assignment_id = {{worker_assignment_data|tojson}}.assignment_id;
+        let local_storage_element_name = assignment_id + name;
+
+        window.localStorage.setItem(local_storage_element_name, value.toString());
+      }
+    }
+
+
+    function getLocalStorageElement(name) {
+      let assignment_id = {{worker_assignment_data|tojson}}.assignment_id;
+      let local_storage_element_name = assignment_id + name;
+      return window.localStorage.getItem(local_storage_element_name);
+    }
+
+    function jumpToPage(pageNumber) {
+      // scroll to the top of the page
+      window.scrollTo(0, 0);
+
+      let numberOfParagraphs = Object.keys(({{text_to_annotate|tojson}})).length;
+      let pageState = getPageState(pageNumber);
+
+      if (pageState == "instructionsPage") {
+        // jump to instructions page
+        // show instructions page and hide other divs
+        $("div#relationButtons").addClass("hidden");
+        $("div#userControls").addClass("hidden");
+        $("div#annotationArea-wrapper").addClass("hidden");
+        $("div#navigationButtons").addClass("hidden");
+        $("div#progress").addClass("hidden");
+        $("div#filter-instructions").addClass("hidden");
+        $("div#filterButtonsStep2").addClass("hidden");
+        $("div#filter-instructions").addClass("hidden");
+        // scroll to the top
+        window.scrollTo(0, 0);
+        $("div#instructions").removeClass("hidden");
+
+        logger = logger.concat(Date.now(), "/Instructions page", "//");
+
+      }
+      else if (pageState == "finishPage") {
+        updateProgressBar(numberOfParagraphs-1, numberOfParagraphs);
+        // jump to finish page
+        // show finish page and hide other divs
+        $("div#progress").addClass("hidden"); 
+        $("div#relationButtons").addClass("hidden");
+        $("div#userControls").addClass("hidden");
+        $("div#annotationArea-wrapper").addClass("hidden");
+        $("#navigationButtons").addClass("hidden");
+        $("div#filter-instructions").addClass("hidden");
+        $("div#filter-instructions").addClass("hidden");
+        $("div#filterButtonsStep2").addClass("hidden");
+
+        // scroll to the top
+        window.scrollTo(0, 0);
+        $("div#feedback").removeClass("hidden");
+
+        logger = logger.concat(Date.now(), "/Finish page", "//");
+
+        // print data on heroku for safety reasons
+        printDataOnServer("on FINISH page - RELATION");
+
+      }
+      else {
+
+        //check if the filter (Step 2) has been passed already
+        if (window.filterData_step2.filterPassed === true) {
+          // ANNOTATION PAGE
+          // filter (Step 2) has been passed
+
+          $("div#filter-instructions").addClass("hidden");
+          
+          resetCurrentlySelectedAnnotations();
+          // display annotation page with correct paragraph
+          displayTextToAnnotate(pageNumber, window.annotations);
+          reloadAnnotationRelationsTable(pageNumber);
+          updateProgressBar(pageNumber, numberOfParagraphs);
+          $("div#instructions").addClass("hidden");
+          $("div#feedback").addClass("hidden");
+          $("div#filterButtonsStep2").addClass("hidden");
+
+          $("div#progress").removeClass("hidden");
+          $("div#relationButtons").removeClass("hidden");
+          $("div#userControls").removeClass("hidden");
+          $("div#annotationArea-wrapper").removeClass("hidden");
+          $("div#navigationButtons").removeClass("hidden");
+          $("#previousPageButton").html('&laquo; Instructions');
+
+          logger = logger.concat(Date.now(), "/Annotation page. p=", pageNumber, "//");
+
+          if (pageNumber == (numberOfParagraphs-1)) {
+            // change value of next button
+            $("#nextPageButton").html('Finish &raquo;');
+          }
+          else {
+            $("#nextPageButton").html('Next &raquo;');
+          }
+          if (pageNumber == 0) {
+            // change value of previous button
+            $("#previousPageButton").html('&laquo; Instructions');
+          }
+          else {
+            $("#previousPageButton").html('&laquo; Previous');
+          }
+
+        }
+        else {
+          // FILTER (Step 2) PAGE
+          // filter (Step 2) has not been passed yet, go to filter (Step 2) page
+          
+          // in case some relation(s) was annotated during the filter step 2, this relation(s) should be forgotten on a page refresh and also when user comes back from instructions.
+          clearCurrentFilterStep2Selection();
+          
+          $("div#progress").addClass("hidden");
+          $("div#navigationButtons").addClass("hidden");
+          
+          $("div#instructions").addClass("hidden");
+          
+          
+          $("div#feedback").addClass("hidden");
+          
+          
+          resetCurrentlySelectedAnnotations();
+          displayTextToAnnotateFILTERSTEP2();
+          reloadAnnotationRelationsTableFILTERSTEP2();
+          
+          $("div#filterButtonsStep2").removeClass("hidden");
+          $("div#filter-instructions").removeClass("hidden");
+          $("div#relationButtons").removeClass("hidden");
+          $("div#userControls").removeClass("hidden");
+          $("div#annotationArea-wrapper").removeClass("hidden");
+          $("#previousPageButton").html('&laquo; Instructions');
+          
+
+          logger = logger.concat(Date.now(), "/Filter (step 2) page. q=", current_filter_question_id, "//");
+
+        }
+      
+
+      }
+
+      // scroll to the top of the page
+      window.scrollTo(0, 0);
+    };
+
+    function updateProgressBar(newParagraphNumber, numberOfParagraphs) {
+      let newWidth = (((newParagraphNumber+1)/numberOfParagraphs) * 100) + '%';
+      let newText = '<b>' + (newParagraphNumber+1) + '/' + numberOfParagraphs + '</b>';
+      $("div#progress").removeClass("hidden");
+      $("div.progress-bar").css( "width", newWidth);
+      $("div.progress-bar").html(newText);
+    }
+
+  </script>
+</html>

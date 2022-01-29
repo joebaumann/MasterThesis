@@ -1,0 +1,561 @@
+{% extends "relationannotation/relationAnnotation.html" %}
+
+{% block instructions %}
+<div>
+  <h4><u><b>Introduction and Instructions</b></u></h4>
+  <h5><b>Overview</b></h5>
+  <p>
+    We invite you to participate in an argumentative relation discovery study. We are exploring the effective discovery of argument relations in scientific publications. After giving your consent, you will be presented three paragraphs of scientific publications which are to be annotated. The goal of this study is to simplify the creation of argument-annotated gold standard gold standard training data.
+  </p>
+  <p>
+    You will be presented three paragraphs of scientific publications. Different argument types (<i>Own Claim</i>, <i>Background Claim</i>, <i>Data</i>) are highlighted within each paragraph. For each possible combination of these highlighted sections you should decide whether they are related and if yes annotate one the three following relations: <b><i>Supports</i></b>, <b><i>Contradicts</i></b>, <b><i>Parts of Same</i></b>.
+  </p>
+
+
+  <p>
+    <h5><b>Relation types:</b></h5>
+    
+    
+    <h6><b>What is a <u>Supports</u> relation?&nbsp</b>
+    <span  class="example">
+      <a id="example-supports" tabindex="0" class="btn btn-sm btn-info" role="button" data-toggle="popover" data-trigger="focus" data-html="true" title="Examples for <u>Supports</u> relations:" data-popover-content="#example-supports-content">
+      <svg width="1em" height="1em" viewBox="0 0 16 16" class="bi bi-info-circle" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M8 15A7 7 0 1 0 8 1a7 7 0 0 0 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/><path d="M8.93 6.588l-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588z"/><circle cx="8" cy="4.5" r="1"/></svg><span id="exampleButtonText">&nbspExample</span></a>
+    </span>
+  
+
+    <div id="example-supports-content" class="hidden">
+
+      <div class="row justify-content-center" id="annotationArea-wrapper-example">
+        <div class="col-sm" id="textToAnnotate-wrapper">
+          <div id="textToAnnotate-example">
+
+            <p>
+              <span class="backgroundclaim firstToken lastToken">Tense interpretation has received much attention in
+                linguistics </span><span class="annotationName annotationName-backgroundclaim"> Background Claim</span>
+              [<span class="data firstToken lastToken"> 1 </span><span class="annotationName annotationName-data">
+                Data</span>], [<span class="data firstToken lastToken"> 2 </span><span
+                class="annotationName annotationName-data"> Data</span>], <span
+                class="backgroundclaim firstToken lastToken">and natural language processing </span><span
+                class="annotationName annotationName-backgroundclaim"> Background Claim</span> [<span
+                class="data firstToken lastToken"> 3 </span><span class="annotationName annotationName-data">
+                Data</span>], [<span class="data firstToken lastToken"> 4 </span><span
+                class="annotationName annotationName-data"> Data</span>].
+            </p>
+
+              <span class="ownclaim firstToken lastToken">The tenses used may not completely specify the implicit temporal relations between the described events </span><span class="annotationName annotationName-ownclaim"> Own Claim</span> . We claim that <span class="ownclaim firstToken lastToken"> these relations may be further refined by constraints imposed by the coherence relation operative between clauses </span><span class="annotationName annotationName-ownclaim"> Own Claim</span> . We describe three coherence relations relevant to the examples in this paper and give temporal constraints for them.
+
+          </div>
+        </div>
+        <div class="col-sm" id="relationsTable-example">
+          <table class="table table-sm">
+            <thead id="tableHeader">
+              <tr>
+                <th scope="col">Text</th>
+                <th scope="col" class="relationHeader">Relation</th>
+                <th scope="col">Text</th>
+              </tr>
+            </thead>
+            <tbody>
+
+              <tr class="partsofsame">
+                <td class="textColumn">
+                  <span class="backgroundclaim firstToken lastToken">Tense interpretation has received much attention in linguistics </span><span class="annotationName annotationName-backgroundclaim"> Background Claim</span>
+                </td>
+                <td class="relation">
+                  Parts of Same
+                </td>
+                <td class="textColumn">
+                  <span class="backgroundclaim firstToken lastToken">and natural language processing </span><span class="annotationName annotationName-backgroundclaim"> Background Claim</span>
+                </td>
+              </tr>
+
+              <tr class="supports">
+                <td class="textColumn">
+                  <span class="data firstToken lastToken">&nbsp;1&nbsp; </span><span class="annotationName annotationName-data">Data</span>
+                </td>
+                <td class="relation">
+                  Supports
+                </td>
+                <td class="textColumn">
+                  <span class="backgroundclaim firstToken lastToken">Tense interpretation has received much attention in linguistics </span><span class="annotationName annotationName-backgroundclaim"> Background Claim</span>
+                </td>
+              </tr>
+
+              <tr class="supports">
+                <td class="textColumn">
+                  <span class="data firstToken lastToken">&nbsp;2&nbsp; </span><span class="annotationName annotationName-data">Data</span>
+                </td>
+                <td class="relation">
+                  Supports
+                </td>
+                <td class="textColumn">
+                  <span class="backgroundclaim firstToken lastToken">Tense interpretation has received much attention in linguistics </span><span class="annotationName annotationName-backgroundclaim"> Background Claim</span>
+                </td>
+              </tr>
+
+              <tr class="supports">
+                <td class="textColumn">
+                  <span class="data firstToken lastToken">&nbsp;3&nbsp; </span><span class="annotationName annotationName-data">Data</span>
+                </td>
+                <td class="relation">
+                  Supports
+                </td>
+                <td class="textColumn">
+                  <span class="backgroundclaim firstToken lastToken">and natural language processing </span><span class="annotationName annotationName-backgroundclaim"> Background Claim</span>
+                </td>
+              </tr>
+
+              <tr class="supports">
+                <td class="textColumn">
+                  <span class="data firstToken lastToken">&nbsp;4&nbsp; </span><span class="annotationName annotationName-data"> Data</span>
+                </td>
+                <td class="relation">
+                  Supports
+                </td>
+                <td class="textColumn">
+                  <span class="backgroundclaim firstToken lastToken">and natural language processing </span><span class="annotationName annotationName-backgroundclaim">  Background Claim</span>
+                </td>
+              </tr>
+
+              <tr class="supports">
+                <td class="textColumn">
+                  <span class="ownclaim firstToken lastToken"> The tenses used may not completely specify the implicit temporal relations between the described events </span><span class="annotationName annotationName-ownclaim"> Own Claim</span>
+                </td>
+                <td class="relation">
+                  Supports
+                </td>
+                <td class="textColumn">
+                  <span class="ownclaim firstToken lastToken"> these relations may be further refined by constraints imposed by the coherence relation operative between clauses </span><span class="annotationName annotationName-ownclaim"> Own Claim</span>
+                </td>
+              </tr>
+
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+
+    </div>
+
+
+    
+
+
+  </h6>
+
+    A <i>Supports</i> relation is a directed relationship from an argument <i>a</i> to an argument <i>b</i> if <i>a</i> backs <i>b</i>. Usually, this relationship exists from data to claim, but in many cases a claim might support another claim. Other combinations are still possible.
+  </p>
+
+  <h6><b>What is a <u>Contradicts</u> relation?&nbsp</b>
+    <span class="example">
+      <a id="example-contradicts" tabindex="0" class="btn btn-sm btn-info" role="button" data-toggle="popover" data-trigger="focus" data-html="true" title="Examples for <u>Contradicts</u> relations:" data-popover-content="#example-contradicts-content">
+      <svg width="1em" height="1em" viewBox="0 0 16 16" class="bi bi-info-circle" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M8 15A7 7 0 1 0 8 1a7 7 0 0 0 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/><path d="M8.93 6.588l-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588z"/><circle cx="8" cy="4.5" r="1"/></svg><span id="exampleButtonText">&nbspExample</span></a>
+    </span>
+  
+  
+
+    <div id="example-contradicts-content" class="hidden">
+
+      <div class="row justify-content-center" id="annotationArea-wrapper-example">
+        <div class="col-sm" id="textToAnnotate-wrapper">
+          <div id="textToAnnotate-example">
+            <span class="ownclaim firstToken lastToken">The proposed skin deformation system is by no means perfect </span><span class="annotationName annotationName-ownclaim"> Own Claim</span> ; <span class="ownclaim firstToken lastToken"> it cannot compete with complex, layered models </span><span class="annotationName annotationName-ownclaim"> Own Claim</span> . However, <span class="ownclaim firstToken lastToken"> the SBS algorithm offers reasonable price for elimination of the notorious LBS artifacts </span><span class="annotationName annotationName-ownclaim"> Own Claim</span> .
+
+          </div>
+        </div>
+        <div class="col-sm" id="relationsTable-example">
+          <table class="table table-sm">
+            <thead id="tableHeader">
+              <tr>
+                <th scope="col">Text</th>
+                <th scope="col" class="relationHeader">Relation</th>
+                <th scope="col">Text</th>
+              </tr>
+            </thead>
+            <tbody>
+
+              <tr class="supports">
+                <td class="textColumn">
+                  <span class="ownclaim firstToken lastToken">it cannot compete with complex, layered models </span><span class="annotationName annotationName-ownclaim"> Own Claim</span>
+                </td>
+                <td class="relation">
+                  Supports
+                </td>
+                <td class="textColumn">
+                  <span class="ownclaim firstToken lastToken">The proposed skin deformation system is by no means perfect </span><span class="annotationName annotationName-ownclaim"> Own Claim</span>
+                </td>
+              </tr>
+
+              <tr class="contradicts">
+                <td class="textColumn">
+                  <span class="ownclaim firstToken lastToken">The proposed skin deformation system is by no means perfect </span><span class="annotationName annotationName-ownclaim"> Own Claim</span>
+                </td>
+                <td class="relation">
+                  Contradicts
+                </td>
+                <td class="textColumn">
+                  <span class="ownclaim firstToken lastToken"> the SBS algorithm offers reasonable price for elimination of the notorious LBS artifacts </span><span class="annotationName annotationName-ownclaim"> Own Claim</span>
+                </td>
+              </tr>
+              
+              <tr class="contradicts">
+                <td class="textColumn">
+                  <span class="ownclaim firstToken lastToken">it cannot compete with complex, layered models </span><span class="annotationName annotationName-ownclaim"> Own Claim</span>
+                </td>
+                <td class="relation">
+                  Contradicts
+                </td>
+                <td class="textColumn">
+                  <span class="ownclaim firstToken lastToken"> the SBS algorithm offers reasonable price for elimination of the notorious LBS artifacts </span><span class="annotationName annotationName-ownclaim"> Own Claim</span>
+                </td>
+              </tr>
+              
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+
+    </div>
+
+  
+  
+  
+  
+  </h6>
+    A relationship of type <i>Contradicts</i> represents the counterpart of the Supports relationship, but in contrast, it is a bi-directional, i.e., symmetric relationship. An <i>Contradicts</i> relation exists between an argument <i>a</i> and an argument <i>b</i>, if argument <i>a</i> contradicts <i>b</i> and vice versa.
+  </p>
+
+
+
+
+
+  <p>
+    <h6><b>What is a <u>Parts of Same</u> relation?&nbsp</b>
+      <span class="example">
+        <a id="example-partsofsame" tabindex="0" class="btn btn-sm btn-info" role="button" data-toggle="popover" data-trigger="focus" data-html="true" title="Examples for <u>Parts of Same</u> relations:" data-popover-content="#example-partsofsame-content">
+        <svg width="1em" height="1em" viewBox="0 0 16 16" class="bi bi-info-circle" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M8 15A7 7 0 1 0 8 1a7 7 0 0 0 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/><path d="M8.93 6.588l-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588z"/><circle cx="8" cy="4.5" r="1"/></svg><span id="exampleButtonText">&nbspExample</span></a>
+      </span>
+    
+    
+    <div id="example-partsofsame-content" class="hidden">
+
+      <div class="row justify-content-center" id="annotationArea-wrapper-example">
+        <div class="col-sm" id="textToAnnotate-wrapper">
+          <div id="textToAnnotate-example">
+
+            <p>
+              <span class="backgroundclaim firstToken lastToken">Tense interpretation has received much attention in
+                linguistics </span><span class="annotationName annotationName-backgroundclaim"> Background Claim</span> , <span
+                class="backgroundclaim firstToken lastToken">and natural language processing </span><span
+                class="annotationName annotationName-backgroundclaim"> Background Claim</span> .
+              </p>
+              
+
+              <span class="backgroundclaim firstToken lastToken">Skinning using free form lattices </span><span class="annotationName annotationName-backgroundclaim"> Background Claim</span> , or <span
+                class="backgroundclaim firstToken lastToken"> NURBS curves </span><span
+                class="annotationName annotationName-backgroundclaim"> Background Claim</span> instead of skeletons to drive character surface <span
+                class="backgroundclaim firstToken lastToken"> are also common practices in the entertainment production </span><span
+                class="annotationName annotationName-backgroundclaim"> Background Claim</span> .
+
+          </div>
+        </div>
+        <div class="col-sm" id="relationsTable-example">
+          <table class="table table-sm">
+            <thead id="tableHeader">
+              <tr>
+                <th scope="col">Text</th>
+                <th scope="col" class="relationHeader">Relation</th>
+                <th scope="col">Text</th>
+              </tr>
+            </thead>
+            <tbody>
+
+              <tr class="partsofsame">
+                <td class="textColumn">
+                  <span class="backgroundclaim firstToken lastToken">Tense interpretation has received much attention in linguistics </span><span class="annotationName annotationName-backgroundclaim"> Background Claim</span>
+                </td>
+                <td class="relation">
+                  Parts of Same
+                </td>
+                <td class="textColumn">
+                  <span class="backgroundclaim firstToken lastToken">and natural language processing </span><span class="annotationName annotationName-backgroundclaim"> Background Claim</span>
+                </td>
+              </tr>
+
+              <tr class="partsofsame">
+                <td class="textColumn">
+                  <span class="backgroundclaim firstToken lastToken">Skinning using free form lattices </span><span class="annotationName annotationName-backgroundclaim"> Background Claim</span>
+                </td>
+                <td class="relation">
+                  Parts of Same
+                </td>
+                <td class="textColumn">
+                  <span class="backgroundclaim firstToken lastToken"> are also common practices in the entertainment production </span><span class="annotationName annotationName-backgroundclaim"> Background Claim</span>
+                </td>
+              </tr>
+
+              <tr class="partsofsame">
+                <td class="textColumn">
+                  <span class="backgroundclaim firstToken lastToken"> NURBS curves </span><span class="annotationName annotationName-backgroundclaim"> Background Claim</span>
+                </td>
+                <td class="relation">
+                  Parts of Same
+                </td>
+                <td class="textColumn">
+                  <span class="backgroundclaim firstToken lastToken"> are also common practices in the entertainment production </span><span class="annotationName annotationName-backgroundclaim"> Background Claim</span>
+                </td>
+              </tr>
+
+              
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      <br>
+      
+      <div class="row justify-content-center" id="annotationArea-wrapper-example">
+        <small><i>As can be seen in the second sentence: In case you encounter more than two instances which are part of essentially the same argument you do not have to draw the relationship to all instances, but only to the last instance of that argument that you have already connected.</i>
+          <br>
+          <i>Here, this means that the Parts of Same relation between </i><span class="backgroundclaim firstToken lastToken">Skinning using free form lattices</span> <i>and</i> <span class="backgroundclaim firstToken lastToken"> NURBS curves</span> <i>is not needed.</i>
+        </small>
+      </div>
+
+
+    </div>
+
+
+    
+    
+    
+    </h6>
+      In addition to the two inter-argument relationships presented above, we have to specify a third ”artificial” type of relation:<br>In real-world examples of arguments a single argument, such as for example a claim, might be split up in several parts. Nevertheless, we would like to be able to recognize that those parts actually belong to the same argument. We call such a relation <i>Parts of Same</i>.
+      <ul>
+        <li>For Parts of Same relations, it does not matter which of the two arguments is selected first and which is selected second.</li>
+        <li>In case you encounter more than two instances which are part of essentially the same argument you do not have to draw the relationship to all instances, but only to the last instance of that argument that you have already connected.</li>
+      </ul>
+      
+  </p>
+
+  <p>
+    <h5><b>Steps</b></h5>
+    Carefully read all the instructions.
+
+    <b>Always read the whole text from the beginning to the end to get an overview about the structure as well as about the overall content</b>. Then, look at the highlighted arguments and then proceed to annotate the relations that hold between them.
+
+    Thank you! We very much appreciate the time that you put into helping us with our research.
+  </p>
+  
+
+  <p>
+  <h5><b>How to annotate the relations?</b></h5>
+    <h6 style="color: #0c5460;">
+      <i class="fa fa-retweet fa-lg" aria-hidden="true"></i>&nbsp;<b><u>For each highlighted argument</u> you should do the following:</b>
+    </h6>
+    <ul style="border-left: 0.1em solid #0c5460;margin-left: 0.7em;">
+      <b>
+      <li>Are there other highlighted arguments shortly before or ofter which actually belong to the same argument and but are just split because of linguistic reasons?</li>
+      <li>
+      <span style="color: green;"><i>If yes</i></span>, select both arguments by clicking on them with your mouse and press on one the button <i>Parts of Same</i>.</b>
+        <ul>
+          <li>Choose how certain you are about this relation on a scale from 1 to 3.<br><small><i>(1: I am not sure at all / 3: I am sure this relation is correct)</i></small></li>
+          <li>For both selected arguments, select those words which made you decide to do this relation.</li>
+          <li>Finally, explain in your own words, what made you do this relation.</li>
+          <li>Confirm your relation by clicking on the button <span style="background-color: #007bff;color: white;font-weight: 400;border-radius: .25rem;">Save Relation</span>.</li>
+        </ul>
+      </li>
+
+
+      <b><li>Think about possible relationships with other highlighted arguments.</li>
+      <li>If you identify such a relationship: Decide of which type is it (<i>supports</i> or <i>contradicts</i>)? Click on both arguments and then click on one of the two buttons (<i>supports</i> or <i>contradicts</i>).</b>
+        <ul>
+          <li>Choose how certain you are about this relation on a scale from 1 to 3.<br><small><i>(1: I am not sure at all / 3: I am sure this relation is correct)</i></small></li>
+          <li>For both selected arguments, select those words which made you decide to do this relation.</li>
+          <li>Finally, explain in your own words, what made you do this relation.</li>
+          <li>Confirm your relation by clicking on the button <span style="background-color: #007bff;color: white;font-weight: 400;border-radius: .25rem;">Save Relation</span>.</li>
+        </ul>
+      </li>
+      
+    </ul>
+  </p>
+
+  <p>
+    <ul class="importantInstructionInfo">
+      <li class="list-group-item list-group-item-info"><b><u>Important</u>:</b><br>
+        <ul>
+          <li>Try to identify as many relations as possible!</li>
+          <li>An argument can be part of many different relations!</li>
+        </ul>
+      </li>
+    </ul>
+  </p>
+
+
+
+  <p>
+		<div>
+			<p><h5><b>Informed Consent</b></h5>
+        <p>
+          Participation requires that you give your informed consent. Before proceeding, please consider the following information.
+        </p>
+        <p>
+          <ul>
+            <li>The task consists of annotating Supports, Contradicts, Parts of Same relations in three paragraphs of a scientific paper.</li>
+            <li>The task will take about 30 minutes to complete.</li>
+            <li>You will receive a qualification so that in the future we know that you have worked for us before. This is important so that we can design our experiments.</li>
+            <li>There are no risks or benefits of any kind involved in this study.</li>
+            <li>You will be paid for your participation at the posted rate (provided that you complete the whole task according to these instructions).</li>
+            <li>Bad quality answers will be rejected (bad quality correspond to, amongst others, amount and accuracy of relations).</li>
+            <li>Your individual privacy will be maintained in all published and written data resulting from this task. Participation is voluntary.</li>
+            <li>At any point, you may refuse to participate further without penalty.</li>
+          </ul>
+        </p>
+        <p>
+          By ticking the box below that you give your informed consent, you proceed to the task and you certify that you have read this form, and agreed to participate in accordance with the above conditions.
+        </p>
+        <p>
+          &emsp;<input type="checkbox" name="informedConsentCheckBox" id="informedConsentCheckBox">&emsp;I agree to the above conditions<br>
+        </p>
+      </p>
+    </div>
+    <div>
+			<p><b><u>Amazon Mechanical Turk Experience</u></b></p>
+			<p>
+				Thank you for taking the time to complete this task. For our research, we are interested in finding arguments in scientific publications. However, we are also interested in whether you read the instructions carefully. Hence, in order to show us that you have read the instructions, please ignore the following question, copy the first two words of this paragraph and replace "Elaborate if you want" in the input field below. Thank you very much.
+			</p>
+      <p>How long have you been using Amazon Mechanical Turk as a worker?</p>
+      <form>
+        <div class="form-group">
+          <input class="form-control" id="attentionTask" placeholder="Elaborate if you want">
+        </div>
+      </form>
+		</div>
+  </p>
+
+  <hr>
+    	
+</div>
+
+
+
+<script type="text/javascript">
+
+
+  $("document").ready(function() {
+    updatePopoverSanitizer();
+
+    updateStartButton();
+    updateConsentCheckBoxAndAttentionInput();
+
+    $("#informedConsentCheckBox").click(function() {
+      // enable start button as soon es conditions have been accepted
+      updateStartButton();
+      updateConsentCheckBoxAndAttentionInput();
+    });
+
+
+    // makes sure that example popovers are dismissed on the user’s next click of a different element than the toggle element
+    $('.popover-dismiss').popover({
+      trigger: 'focus'
+    })
+
+
+    //show corresponding popovers when example button is clicked
+    $('#example-supports').click(function() {
+      $('#example-supports').popover('show');
+    })
+
+    $(document).on("click", "a[id^=example-]", function(){
+      // click event of example buttons is nested in a document click event listener since example info buttons are created dynamically
+      // log every time an example button is clicked
+      logger = logger.concat(Date.now(), "/", $(this).attr("id"), " button clicked//");
+      return false;
+    });
+
+    // clone example button and adjust design
+    var example_supports_clone = $("#example-supports").clone().removeClass("btn-info").addClass("btn-basic relationInfoButton").popover({placement: 'bottom'});
+    var example_contradicts_clone = $("#example-contradicts").clone().removeClass("btn-info").addClass("btn-basic relationInfoButton").popover({placement: 'bottom'});
+    var example_partsofsame_clone = $("#example-partsofsame").clone().removeClass("btn-info").addClass("btn-basic relationInfoButton").popover({placement: 'bottom'});
+    
+    // set the content such as text paragraphs and relation table
+    var example_supports_content = $("#example-supports-content").html();
+    $(example_supports_clone).attr("data-content", example_supports_content);
+    var example_contradicts_content = $("#example-contradicts-content").html();
+    $(example_contradicts_clone).attr("data-content", example_contradicts_content);
+    var example_partsofsame_content = $("#example-partsofsame-content").html();
+    $(example_partsofsame_clone).attr("data-content", example_partsofsame_content);
+    
+    // remove text and append to annotation button
+    $(example_supports_clone).find("#exampleButtonText").remove().end().insertAfter("#supports");
+    $(example_contradicts_clone).find("#exampleButtonText").remove().end().insertAfter("#contradicts");
+    $(example_partsofsame_clone).find("#exampleButtonText").remove().end().insertAfter("#partsofsame");
+    
+    
+  });
+
+  function updateStartButton() {
+    if ({{preview_mode}} == true) {
+      // do not enable start button in preview mode
+      $('#startAnnotation').prop("disabled",true);
+      $('#startAnnotationButton').attr('title', 'Accept the HIT to start working.').tooltip('_fixTitle');
+    }
+    else if (!($("#informedConsentCheckBox").is(':checked'))) {
+      // do not enable start button since conditions were not yet accepted
+      $('#startAnnotation').prop("disabled",true);
+      $('#startAnnotationButton').attr('title', 'Agree to the above conditions to start working.').tooltip('_fixTitle');
+    }
+    else {
+      // enable start button
+      $('#startAnnotation').prop("disabled",false);
+      $('#startAnnotationButton').attr('title', 'Press to start!').tooltip('_fixTitle');
+    }
+    updateWorkerData();
+  };
+
+  function updateConsentCheckBoxAndAttentionInput() {
+    if ({{preview_mode}} == true) {
+      // do not enable consent check box and attention task in preview mode
+      $('#informedConsentCheckBox').prop("disabled",true);
+      $('#attentionTask').prop("disabled",true);
+
+    }
+    else {
+      $('#informedConsentCheckBox').prop("disabled",false);
+      $('#attentionTask').prop("disabled",false);
+
+    }
+  };
+
+  function updatePopoverSanitizer() {
+    // Tooltips and Popovers use our built-in sanitizer to sanitize options which accept HTML.
+    // This function makes sure that the example popovers can display the example table by adding the needed html tags to the whiteList.
+    $.fn.popover.Constructor.Default.whiteList.table = [];
+    $.fn.popover.Constructor.Default.whiteList.tr = [];
+    $.fn.popover.Constructor.Default.whiteList.td = [];
+    $.fn.popover.Constructor.Default.whiteList.th = [];
+    $.fn.popover.Constructor.Default.whiteList.div = [];
+    $.fn.popover.Constructor.Default.whiteList.tbody = [];
+    $.fn.popover.Constructor.Default.whiteList.thead = [];
+
+  }
+
+
+  $(function() {
+    updatePopoverSanitizer();
+
+    $("[data-toggle=popover]").popover({
+      html: true,
+      content: function() {
+        var content = $(this).attr("data-popover-content");
+        return $(content).html();
+      }
+    });
+  });
+
+
+
+
+</script>
+
+{% endblock %}

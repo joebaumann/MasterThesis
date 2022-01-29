@@ -1,0 +1,31 @@
+<!-- extend base layout -->
+{% extends "admin_area/base.html" %}
+
+{% block content %}
+<head>
+    <script type="text/javascript">
+        $("document").ready(function () {
+            // deactivate all navbar links and then activate the link for the current page
+            $(".base-navbar-link").removeClass("active");
+            $("#navbar-data").addClass("active");
+        })
+    </script>
+</head>
+<body>
+    <div>
+        <h3 class="font-weight-light mt-4 text-white">List of all annotations:</h3>
+        {% for a in found_annotations %}
+        <p class="lead text-white-50">Annotation: {{ a }}</p>
+        {% endfor %}
+        
+        <h3 class="font-weight-light mt-4 text-white">List of messages:</h3>
+        <samp>{{message}}</samp>
+        {% if deleted_rows != -1 %}
+        <p><samp>In total <mark><b>{{ deleted_rows }} rows</b></mark> have been deleted!</samp></p>
+        {% endif %}
+    </div>
+    <h3 class="font-weight-light mt-4 text-white">Actions:</h3>
+    <button type="button" class="btn btn-danger btn-lg" onclick="window.location.href='{{ url_for( 'admin_area_bp.deleteAllAnnotations' ) }}';">Delete All Annotations</button>
+</body>
+
+{% endblock %}

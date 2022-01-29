@@ -1,0 +1,262 @@
+<!-- extend base layout -->
+{% extends "admin_area/base.html" %}
+
+{% block content %}
+<head>
+    <script type="text/javascript">
+        $("document").ready(function () {
+
+            toggleEnvironmentButton();
+
+            $(document).on("click", ".delete-qual-button", function() {
+                let buttonId = $(this).attr("id");
+                // click event of delete-qual-button button is nested in a document click event listener since these buttons are created dynamically
+                deleteQualification(buttonId);
+            });
+        })
+
+
+        function toggleEnvironmentButton() {
+            // set the state of the environment button
+            console.log("environment:");
+            console.log({{environment|tojson}});
+            // first enable both buttons
+            $(".environment-button").removeClass("selected").prop('disabled', false);
+            // and then disable selected button
+            $("#" + {{environment|tojson}}).addClass("selected").prop('disabled', true);
+
+        }
+
+
+        function deleteQualification(qualification_id) {
+            // delete hit and reload the page
+            $.getJSON('{{ url_for('admin_area_bp.delete_qualification') }}', {'qualification_id': qualification_id, 'environment': {{environment|tojson}} }, function(data) {
+                console.log("response:");
+                console.log(data);
+                // as soon as server returns message that request was handled, reload the page so that deleted qualification is not displayed in table anymore
+                location.reload();
+                return false;
+            })
+        }
+
+
+    </script>
+</head>
+<body>
+
+    <div class="container">
+
+        <div class="row justify-content-md-center">
+            <button type="button" class="btn btn-warning environment-button" id="sandbox"
+                onclick="window.location.href='{{ url_for('admin_area_bp.show_worker_qualifications', client_mturk_environment='sandbox') }}';">Sandbox</button>
+            <button type="button" class="btn btn-warning environment-button" id="production"
+                onclick="window.location.href='{{ url_for('admin_area_bp.show_worker_qualifications', client_mturk_environment='production') }}';">Production</button>
+        </div>
+
+        <div class="row justify-content-center">
+        
+            {% with errors = get_flashed_messages(category_filter=["error"]) %}
+                {% if errors %}
+                    {%- for msg in errors %}
+                    <div class="alert alert-danger" role="alert">{{msg}}</div>
+                    {% endfor -%}
+                {% endif %}
+            {% endwith %}
+    
+            {% with infos = get_flashed_messages(category_filter=["info"]) %}
+                {% if infos %}
+                    {%- for msg in infos %}
+                    <div class="alert alert-warning" role="alert">{{msg}}</div>
+                    {% endfor -%}
+                {% endif %}
+            {% endwith %}
+    
+            {% with success = get_flashed_messages(category_filter=["success"]) %}
+                {% if success %}    
+                    {%- for msg in success %}
+                    <div class="alert alert-success" role="alert">{{msg}}</div>
+                    {% endfor -%}
+                {% endif %}
+            {% endwith %}
+        
+        </div>
+
+        <div class="row justify-content-md-center" style="margin-top: -2%;">
+
+            <div id="createQualification">
+                <h2 class="mt-4 text-white">Create new Qualification type:</h2>
+                
+                <div class="row" style="color:white;">
+            
+                    <form class="needs-validation" action="{{ url_for('admin_area_bp.create_qualification') }}" method="post">
+                        <input name='environment' value='{{environment}}' class="hidden" />
+                        <label class="mt-4 text-white" for="qualificationName">Qualification Name:</label>
+                        <input name="qualificationName" id='qualificationName' type="text" placeholder="Qualification Name" />
+                        &nbsp;
+                        <label class="mt-4 text-white" for="qualificationDescription">Qualification Description:</label>
+                        <input name="qualificationDescription" id='qualificationDescription' type="text" placeholder="Qualification Description" />
+                        &nbsp;
+                        <label class="mt-4 text-white" for="keywords">Keywords:</label>
+                        <input name="keywords" id='keywords' type="text" placeholder="Keyword1,Keyword2,..." />
+                        &nbsp;
+                        Qualification-Type Status:
+                        <input name="QualificationTypeStatus" id='QualificationTypeStatus-Active' type="radio" value='Active' checked/>Active
+                        <input name="QualificationTypeStatus" id='QualificationTypeStatus-Inactive' type="radio" value='Inactive' />Inactive
+
+                        &nbsp;&nbsp;&nbsp;
+
+                        <input type="submit" class="btn btn-success" value="Create Qualification"></input>
+                        
+                        <br/>
+                        
+                    </form>
+        
+                </div>
+
+            </div>
+
+            <div id="associate_qualification_with_worker" style="color:white;">
+                <h2 class="mt-4 text-white">Associate Qualification with Worker(s):</h2>
+                
+                <div class="row">
+            
+                    <form class="needs-validation" action="{{ url_for('admin_area_bp.associate_qualification_with_worker') }}" method="post">
+                        <input name='environment' value='{{environment}}' class="hidden" />
+                        <label class="mt-4 text-white required" for="workerid">Worker ID(s):</label>
+                        <input name="workerid" id='workerid' aria-describedby="associate_qualification_with_worker_ID_help" placeholder="workerID1;workerID2" type="text" required/>
+                        <small id="associate_qualification_with_worker_ID_help" class="form-text">To associate several worker IDs with a qualification at once, input all worker IDs separated by a semicolon (e.g.: <i>workerID1;workerID2;workerID3</i>).</small>
+                        &nbsp;
+                        <label class="mt-4 text-white" for="qualificationid">Qualification ID:</label>
+                        <input name="qualificationid" id='qualificationid' type="text" placeholder="Qualification ID" required/>
+                        &nbsp;
+                        <label class="mt-4 text-white" for="IntegerValue">Integer Value [not required]:</label>
+                        <input name="IntegerValue" id='IntegerValue' type="number" min="0" step="1" />
+                        &nbsp;
+                        Send Notification:
+                        <input name="SendNotification" id='SendNotification-yes' type="radio" value='yes' />Send Notification
+                        <input name="SendNotification" id='SendNotification-no' type="radio" value='no' checked/>Do NOT Send Notification
+                        
+                        &nbsp;&nbsp;&nbsp;
+
+                        <input type="submit" class="btn btn-info" value="Associate Qualification with Worker(s)"></input>
+                        
+                        <br/>
+                        
+                    </form>
+        
+                </div>
+
+            </div>
+
+
+            <div id="disassociate_qualification_with_worker" style="color:white;">
+                <h2 class="mt-4 text-white">Disassociate Qualification with Worker:</h2>
+                
+                <div class="row">
+            
+                    <form class="needs-validation" action="{{ url_for('admin_area_bp.disassociate_qualification_with_worker') }}" method="post">
+                        <input name='environment' value='{{environment}}' class="hidden" />
+                        <label class="mt-4 text-white required" for="workerid">Worker ID:</label>
+                        <input type="text" name="workerid" id='workerid' placeholder="Worker ID" required/>
+                        &nbsp;
+                        <label class="mt-4 text-white" for="qualificationid">Qualification ID:</label>
+                        <input name="qualificationid" id='qualificationid' type="text" placeholder="Qualification ID" required/>
+                        &nbsp;
+                        <label class="mt-4 text-white" for="reason">Reason:</label>
+                        <input name="reason" id='reason' type="text" placeholder="Reason" />
+                        
+                        &nbsp;&nbsp;&nbsp;
+
+                        <input type="submit" class="btn btn-info" value="Disassociate Qualification with Worker"></input>
+                        
+                        <br/>
+                        
+                    </form>
+        
+                </div>
+
+            </div>
+
+
+            <div id="qualificationsList">
+                <h2 class="mt-4 text-white">All Qualifications:</h2>
+                <p class="lead"><samp>Currently, the following <mark>{{ number_of_qualifications }}</mark> qualifications exist in the Amazon Mechanical Turk <mark>{{ environment }}</mark>environment:</samp></p>
+
+
+
+
+            <div class="row justify-content-center" style="width: 100%;">
+                <div class="col-auto" id="qualifications-table-wrapper">
+                <br>
+
+                    <table class="table table-responsive table-sm table-hover" id="qualifications-table">
+                        <caption><samp>Nr. of qualifications: {{number_of_qualifications}}</samp></caption>
+                        <thead>
+                            <tr>
+                                <th scope="col">#</th>
+                                <th scope="col">ID</th>
+                                <th scope="col">Name</th>
+                                <th scope="col">Status</th>
+                                <th scope="col">Description</th>
+                                <th scope="col">Number of Associated Workers</th>
+                                <th scope="col">Associated Workers</th>
+                                <th scope="col">Is Requestable</th>
+                                <th scope="col">Auto Granted</th>
+                                <th scope="col"></th>
+                            </tr>
+                        </thead>
+                        <tbody style="font-size: x-small;">
+                            {% for qual in quals %}
+                            <tr>
+                                <th scope="row">{{ quals|length - loop.index + 1 }}</th>
+                                
+                                <td>{{ qual['QualificationTypeId'] }}</td>
+                                <td>{{ qual['Name'] }}</td>
+                                <td>{{ qual['QualificationTypeStatus'] }}</td>
+                                <td>{{ qual['Description'] }}</td>
+                                <td>{{ qual['number_of_associated_workers'] }}</td>
+
+                                <td><i><ul>
+                                    {% for worker in qual['associated_workers'] %}
+                                        <li>
+                                            {{ worker['WorkerId'] }}
+                                            <a class="table-icon" tabindex="0"
+                                            role="button" data-toggle="popover" data-trigger="manual"
+                                            title="Detailed Worker Qualification Association Information" data-html="true"
+                                            data-content="<ul>{% for key, value in worker.items() %}{% if key != 'Question' %}<li>{{ key }}: <small>{{ value }}</small></li>{% endif %}{% endfor %}</ul>">
+                                                <svg width="1em" height="1em" viewBox="0 0 16 16" class="bi bi-search table-icon"
+                                                fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                                                    <path fill-rule="evenodd"
+                                                    d="M10.442 10.442a1 1 0 0 1 1.415 0l3.85 3.85a1 1 0 0 1-1.414 1.415l-3.85-3.85a1 1 0 0 1 0-1.415z" />
+                                                    <path fill-rule="evenodd"
+                                                    d="M6.5 12a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11zM13 6.5a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0z" />
+                                                </svg>
+                                            </a>
+                                        </li>
+                                    {% endfor %}
+                                </ul></i></td>
+
+                                <td>{{ qual['IsRequestable'] }}</td>
+                                <td>{{ qual['AutoGranted'] }}</td>
+
+                                <td><button id="{{ qual['QualificationTypeId'] }}" type="button" class="btn btn-danger delete-qual-button">Delete Qualification</button></td>
+
+                            </tr>
+                            {% endfor %}
+
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+
+
+            </div>
+        </div>
+
+
+    </div>
+</body>
+
+
+{% endblock %}

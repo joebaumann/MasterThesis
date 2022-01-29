@@ -1,0 +1,47 @@
+T1	data 5736 5761	testbed of our techniques
+T2	own_claim 5763 5867	we are developing a physicallysimulated animated character capable of a large repertoire of motor skills
+T3	own_claim 5869 5952	An obvious application of such a character is the creation of a virtual stuntperson
+T4	background_claim 5954 6022	the dynamic nature of typical stunts makes them dangerous to perform
+T5	own_claim 6044 6106	an attractive candidate for the use of physics-based animation
+T6	background_claim 6112 6253	open challenge here lies in developing appropriate control strategies for specific actions and ways of integrating them into a coherent whole
+T7	data 6263 6268	paper
+T8	own_claim 6270 6442	we demonstrate families of composable controllers for articulated skeletons whose physical parameters reflect anthropometric data consistent with a fully-fleshed adult male
+T9	data 6444 6529	One family of controllers is for a 37 degree-of-freedom (DOF) 3D articulated skeleton
+T10	data 6537 6634	a second family of controllers has been developed for a comparable 16 DOF 2D articulated skeleton
+T11	own_claim 6642 6707	the 3D skeleton illustrates the ultimate promise of the technique
+T12	background_claim 6709 6872	the easier control associated with the 2D skeleton allows for more rapid prototyping of larger families of controllers and more careful analysis of their operation
+T13	data 6904 6923	robotics literature
+T14	background_claim 6925 7041	the control of broad skilled repertoires of motion remains very much an open problem even for 2D articulated figures
+T15	data 7043 7049	Fig. 1
+T16	own_claim 7050 7137	illustrates the 3D dynamic character autonomously performing a complex control sequence
+T17	data 7189 7206	falling reactions
+T18	data 7208 7220	rolling-over
+T19	data 7222 7232	getting up
+T20	data 7238 7258	balancing in gravity
+T21	data 7260 7366	The upright balancing dynamic figure is pushed backwards by an external force; its arms react protectively
+T22	data 7406 7580	the figure comes to rest in a supine position; it rolls over to a prone position, pushes itself up on all fours, and rises to its feet; finally it balances upright once again
+T23	own_claim 7584 7675	subsequent disturbance will elicit similar though by no means identical autonomous behavior
+T24	background_claim 7766 7899	Control sequences of such intricacy for fully dynamic articulated figures are unprecedented in the physics-based animation literature
+T25	own_claim 7957 8004	we present the details of our control framework
+T26	data 8008 8017	Section 3
+T27	own_claim 8019 8081	We then investigate the question of determining pre-conditions
+T28	data 8085 8094	Section 4
+T29	data 8096 8105	Section 5
+T30	own_claim 8116 8211	the articulated figure models and the software system we use to implement the control framework
+T31	data 8213 8258	Section 6 presents the details of the example
+T32	data 8262 8268	Fig. 1
+T33	own_claim 8275 8354	with several other examples that demonstrate the effectiveness of our framework
+T34	data 8356 8365	Section 7
+T35	background_claim 8499 8589	The simulation and animation of human characters is a challenging problem in many respects
+T36	own_claim 8591 8713	Comprehensive solutions must aspire to distill and integrate knowledge from biomechanics, robotics, control, and animation
+T37	background_claim 8715 8815	Models for human motion must also meet a particularly high standard, given our familiarity with what
+T38	data 8816 8827	the results
+T39	background_claim 8828 8844	should look like
+T40	background_claim 8864 9051	a divide-and-conquer strategy is evident in most approaches, focusing efforts on reproducing particular motions in order to yield a tractable problem and to allow for comparative analysis
+T41	data 9053 9080	The biomechanics literature
+T42	background_claim 9409 9552	Computer simulation is becoming an increasingly useful tool in this domain as the motion models evolve to become more complex and comprehensive
+T43	data 9556 9568	26 , 27 , 29
+T44	data 9748 9762	Reference [ 26
+T45	background_claim 9788 9889	Robotics research has made remarkable progress in the successful design of a variety of legged robots
+T46	data 9893 9895	28
+T47	data 9969 9971	23

@@ -1,0 +1,398 @@
+{
+  "filterStep2_argument_component": {
+    "worker_IDs_who_passed": ["workercomponent1-passedfilter"],
+    "questions": {
+      "1": {
+        "instructions": "<small style='padding:2px;'><i>Pop Quiz Instructions [Question 1]</i></small><br><h6>Please read the text given below. Then decide which part should be annotated as <span class='ownclaim' style='border-radius: .25rem;'>&nbspOwn Claim&nbsp</span>.</h6>Keep in mind that: <ul style='margin-bottom:0px;'><li>An annotation can not be longer than one sentence!</li><li>Whenever you annotate a text span which ends with a punctuation (comma, period, semicolon, colon, etc.) do not include this symbol into your annotation.</li><li>Always try to annotate the minimal text span and omit conjunctions, such as ”because”, when they are not part of an argument but rather connecting multiple.</li><li>You should <strong>try to complete each questions with as few attempts as possible!</strong> Therefore, always think about possible solutions before you press the Check button.</li></ul>",
+        "text_to_annotate": {"0": {"token": "For"},"1": {"token": "the"},"2": {"token": "solution"},"3": {"token": "we"},"4": {"token": "propose"},"5": {"token": "in"},"6": {"token": "this"},"7": {"token": "research"},"8": {"token": "paper"},"9": {"token": ","},"10": {"token": "an"},"11": {"token": "artificial"},"12": {"token": "user"},"13": {"token": "should"},"14": {"token": "be"},"15": {"token": "able"},"16": {"token": "to"},"17": {"token": "conclude"},"18": {"token": "if"},"19": {"token": "the"},"20": {"token": "tool"},"21": {"token": "is"},"22": {"token": "running"},"23": {"token": "normally"},"24": {"token": ","},"25": {"token": "if"},"26": {"token": "it"},"27": {"token": "has"},"28": {"token": "finished"},"29": {"token": "successfully"},"30": {"token": "or"},"31": {"token": "if"},"32": {"token": "it"},"33": {"token": "has"},"34": {"token": "failed"},"35": {"token": "."},"36": {"token": "In"},"37": {"token": "the"},"38": {"token": "following"},"39": {"token": ","},"40": {"token": "we"},"41": {"token": "present"},"42": {"token": "the"},"43": {"token": "outline"},"44": {"token": "of"},"45": {"token": "our"},"46": {"token": "paper"},"47": {"token": "."}},
+        "solution": [
+          [10, 34, "ownclaim"]
+        ],
+        "difficulty": "easy"
+      },
+      "2": {
+        "instructions": "<small style='padding:2px;'><i>Pop Quiz Instructions [Question 2]</i></small><br><h6>Please read the text given below. Then decide which part should be annotated as <span class='backgroundclaim' style='border-radius: .25rem;'>&nbspBackground Claim&nbsp</span>.</h6>Keep in mind that: <ul style='margin-bottom:0px;'><li>An annotation can not be longer than one sentence!</li><li>Whenever you annotate a text span which ends with a punctuation (comma, period, semicolon, colon, etc.) do not include this symbol into your annotation.</li><li>Always try to annotate the minimal text span and omit conjunctions, such as ”because”, when they are not part of an argument but rather connecting multiple.</li><li>You should <strong>try to complete each questions with as few attempts as possible!</strong> Therefore, always think about possible solutions before you press the Check button.</li></ul>",
+        "text_to_annotate": {"0": {"token": "<"}, "1": {"token": "H1"}, "2": {"token": ">"}, "3": {"token": "2"}, "4": {"token": "Previous"}, "5": {"token": "Work"}, "6": {"token": "<"}, "7": {"token": "/H1"}, "8": {"token": ">"}, "9": {"token": "The"}, "10": {"token": "simulation"}, "11": {"token": "and"}, "12": {"token": "animation"}, "13": {"token": "of"}, "14": {"token": "the"}, "15": {"token": "brain"}, "16": {"token": "is"}, "17": {"token": "a"}, "18": {"token": "difficult"}, "19": {"token": "task"}, "20": {"token": "for"}, "21": {"token": "different"}, "22": {"token": "reasons"}, "23": {"token": "."}},
+        "solution": [
+          [9, 22, "backgroundclaim"]
+        ],
+        "difficulty": "easy"
+      },
+      "3": {
+        "instructions": "<small style='padding:2px;'><i>Pop Quiz Instructions [Question 3]</i></small><br><h6>Please read the text given below. Then decide which part should be annotated as <span class='data' style='border-radius: .25rem;'>&nbspData&nbsp</span>.</h6>Keep in mind that: <ul style='margin-bottom:0px;'><li>An annotation can not be longer than one sentence!</li><li>Whenever you annotate a text span which ends with a punctuation (comma, period, semicolon, colon, etc.) do not include this symbol into your annotation.</li><li>Always try to annotate the minimal text span and omit conjunctions, such as ”because”, when they are not part of an argument but rather connecting multiple.</li><li>You should <strong>try to complete each questions with as few attempts as possible!</strong> Therefore, always think about possible solutions before you press the Check button.</li></ul>",
+        "text_to_annotate": {"0": {"token": "The"}, "1": {"token": "findings"}, "2": {"token": "in"}, "3": {"token": "["}, "4": {"token": "4"}, "5": {"token": "]"}, "6": {"token": "include"}, "7": {"token": "a"}, "8": {"token": "good"}, "9": {"token": "overview"}, "10": {"token": "of"}, "11": {"token": "different"}, "12": {"token": "types"}, "13": {"token": "of"}, "14": {"token": "movements"}, "15": {"token": "which"}, "16": {"token": "are"}, "17": {"token": "being"}, "18": {"token": "researched"}, "19": {"token": "in"}, "20": {"token": "the"}, "21": {"token": "field"}, "22": {"token": "of"}, "23": {"token": "robotics"}, "24": {"token": "."}},
+        "solution": [
+          [4, 4, "data"]
+        ],
+        "difficulty": "easy"
+      },
+      "4": {
+        "instructions": "<small style='padding:2px;'><i>Pop Quiz Instructions [Question 4]</i></small><br><h6>Please read the text given below. Then, identify all argument components and annotate them with the corresponding type (<span class='ownclaim' style='border-radius: .25rem;'>&nbspOwn Claim&nbsp</span>, <span class='backgroundclaim' style='border-radius: .25rem;'>&nbspBackground Claim&nbsp</span>, or <span class='data' style='border-radius: .25rem;'>&nbspData&nbsp</span>) – <b>zero</b>, <b>one</b>, or <b>more than one</b> argument components are possible.</h6>Keep in mind that: <ul style='margin-bottom:0px;'><li>An annotation can not be longer than one sentence!</li><li>Whenever you annotate a text span which ends with a punctuation (comma, period, semicolon, colon, etc.) do not include this symbol into your annotation.</li><li>Always try to annotate the minimal text span and omit conjunctions, such as ”because”, when they are not part of an argument but rather connecting multiple.</li><li>You should <strong>try to complete each questions with as few attempts as possible!</strong> Therefore, always think about possible solutions before you press the Check button.</li></ul>",
+        "text_to_annotate": {"0": {"token": "Normal"}, "1": {"token": "skinning"}, "2": {"token": "provided"}, "3": {"token": "by"}, "4": {"token": "the"}, "5": {"token": "skinning"}, "6": {"token": "algorithm"}, "7": {"token": "is"}, "8": {"token": "used"}, "9": {"token": "in"}, "10": {"token": "the"}, "11": {"token": "loop"}, "12": {"token": "of"}, "13": {"token": "maximization"}, "14": {"token": "scheme"}, "15": {"token": "."}},
+        "solution": [],
+        "difficulty": "medium"
+      },
+      "5": {
+        "instructions": "<small style='padding:2px;'><i>Pop Quiz Instructions [Question 5</i></small><br><h6>Please read the text given below. Then, identify all argument components and annotate them with the corresponding type (<span class='ownclaim' style='border-radius: .25rem;'>&nbspOwn Claim&nbsp</span>, <span class='backgroundclaim' style='border-radius: .25rem;'>&nbspBackground Claim&nbsp</span>, or <span class='data' style='border-radius: .25rem;'>&nbspData&nbsp</span>) – <b>zero</b>, <b>one</b>, or <b>more than one</b> argument components are possible.</h6>Keep in mind that: <ul style='margin-bottom:0px;'><li>An annotation can not be longer than one sentence!</li><li>Whenever you annotate a text span which ends with a punctuation (comma, period, semicolon, colon, etc.) do not include this symbol into your annotation.</li><li>Always try to annotate the minimal text span and omit conjunctions, such as ”because”, when they are not part of an argument but rather connecting multiple.</li><li>You should <strong>try to complete each questions with as few attempts as possible!</strong> Therefore, always think about possible solutions before you press the Check button.</li></ul>",
+        "text_to_annotate": {"0": {"token": "Skeleton"}, "1": {"token": "Superspace"}, "2": {"token": "Formation"}, "3": {"token": "("}, "4": {"token": "SSD"}, "5": {"token": ")"}, "6": {"token": "is"}, "7": {"token": "the"}, "8": {"token": "approach"}, "9": {"token": "which"}, "10": {"token": "is"}, "11": {"token": "currently"}, "12": {"token": "used"}, "13": {"token": "the"}, "14": {"token": "most"}, "15": {"token": "for"}, "16": {"token": "various"}, "17": {"token": "skinning"}, "18": {"token": "tasks"}, "19": {"token": "."}},
+        "solution": [
+          [0, 18, "backgroundclaim"]
+        ],
+        "difficulty": "medium"
+      },
+      "6": {
+        "instructions": "<small style='padding:2px;'><i>Pop Quiz Instructions [Question 6]</i></small><br><h6>Please read the text given below. Then, identify all argument components and annotate them with the corresponding type (<span class='ownclaim' style='border-radius: .25rem;'>&nbspOwn Claim&nbsp</span>, <span class='backgroundclaim' style='border-radius: .25rem;'>&nbspBackground Claim&nbsp</span>, or <span class='data' style='border-radius: .25rem;'>&nbspData&nbsp</span>) – <b>zero</b>, <b>one</b>, or <b>more than one</b> argument components are possible.</h6>Keep in mind that: <ul style='margin-bottom:0px;'><li>An annotation can not be longer than one sentence!</li><li>Whenever you annotate a text span which ends with a punctuation (comma, period, semicolon, colon, etc.) do not include this symbol into your annotation.</li><li>Always try to annotate the minimal text span and omit conjunctions, such as ”because”, when they are not part of an argument but rather connecting multiple.</li><li>You should <strong>try to complete each questions with as few attempts as possible!</strong> Therefore, always think about possible solutions before you press the Check button.</li></ul>",
+        "text_to_annotate": {"0": {"token": "For"}, "1": {"token": "the"}, "2": {"token": "condition"}, "3": {"token": "in"}, "4": {"token": "which"}, "5": {"token": "other"}, "6": {"token": "skinning"}, "7": {"token": "algorithms"}, "8": {"token": "are"}, "9": {"token": "used"}, "10": {"token": ","}, "11": {"token": "we"}, "12": {"token": "propose"}, "13": {"token": "a"}, "14": {"token": "combined"}, "15": {"token": "framework"}, "16": {"token": "which"}, "17": {"token": "will"}, "18": {"token": "be"}, "19": {"token": "presented"}, "20": {"token": "in"}, "21": {"token": "the"}, "22": {"token": "first"}, "23": {"token": "section"}, "24": {"token": "of"}, "25": {"token": "chapter"}, "26": {"token": "5"}, "27": {"token": "."}},
+        "solution": [],
+        "difficulty": "medium"
+      },
+      "7": {
+        "instructions": "<small style='padding:2px;'><i>Pop Quiz Instructions [Question 7]</i></small><br><h6>Please read the text given below. Then, identify all argument components and annotate them with the corresponding type (<span class='ownclaim' style='border-radius: .25rem;'>&nbspOwn Claim&nbsp</span>, <span class='backgroundclaim' style='border-radius: .25rem;'>&nbspBackground Claim&nbsp</span>, or <span class='data' style='border-radius: .25rem;'>&nbspData&nbsp</span>) – <b>zero</b>, <b>one</b>, or <b>more than one</b> argument components are possible.</h6>Keep in mind that: <ul style='margin-bottom:0px;'><li>An annotation can not be longer than one sentence!</li><li>Whenever you annotate a text span which ends with a punctuation (comma, period, semicolon, colon, etc.) do not include this symbol into your annotation.</li><li>Always try to annotate the minimal text span and omit conjunctions, such as ”because”, when they are not part of an argument but rather connecting multiple.</li><li>You should <strong>try to complete each questions with as few attempts as possible!</strong> Therefore, always think about possible solutions before you press the Check button.</li></ul>",
+        "text_to_annotate": {"0": {"token": "For"}, "1": {"token": "slightly"}, "2": {"token": "different"}, "3": {"token": "forms"}, "4": {"token": ","}, "5": {"token": "our"}, "6": {"token": "frameworks"}, "7": {"token": "create"}, "8": {"token": "the"}, "9": {"token": "same"}, "10": {"token": "results"}, "11": {"token": ","}, "12": {"token": "as"}, "13": {"token": "can"}, "14": {"token": "be"}, "15": {"token": "seen"}, "16": {"token": "in"}, "17": {"token": "the"}, "18": {"token": "third"}, "19": {"token": "column"}, "20": {"token": "of"}, "21": {"token": "table"}, "22": {"token": "3"}, "23": {"token": "("}, "24": {"token": "..."}, "25": {"token": ")"}, "26": {"token": "."}},
+        "solution": [
+          [1, 3, "data"],
+          [5, 10, "ownclaim"],
+          [18, 22, "data"]
+        ],
+        "difficulty": "difficult"
+      },
+      "8": {
+        "instructions": "<small style='padding:2px;'><i>Instructions [Question 8]</i></small><br><h6>Please read the text given below. Then, identify all argument components and annotate them with the corresponding type (<span class='ownclaim' style='border-radius: .25rem;'>&nbspOwn Claim&nbsp</span>, <span class='backgroundclaim' style='border-radius: .25rem;'>&nbspBackground Claim&nbsp</span>, or <span class='data' style='border-radius: .25rem;'>&nbspData&nbsp</span>) – <b>zero</b>, <b>one</b>, or <b>more than one</b> argument components are possible.</h6>Keep in mind that: <ul style='margin-bottom:0px;'><li>An annotation can not be longer than one sentence!</li><li>Whenever you annotate a text span which ends with a punctuation (comma, period, semicolon, colon, etc.) do not include this symbol into your annotation.</li><li>Always try to annotate the minimal text span and omit conjunctions, such as ”because”, when they are not part of an argument but rather connecting multiple.</li><li>You should <strong>try to complete each questions with as few attempts as possible!</strong> Therefore, always think about possible solutions before you press the Check button.</li></ul>",
+        "text_to_annotate": {"0": {"token": "Every"}, "1": {"token": "time"}, "2": {"token": "when"}, "3": {"token": "a"}, "4": {"token": "run"}, "5": {"token": "goes"}, "6": {"token": "wrong"}, "7": {"token": ","}, "8": {"token": "a"}, "9": {"token": "production"}, "10": {"token": "can\u2019t"}, "11": {"token": "afford"}, "12": {"token": "major"}, "13": {"token": "fixes"}, "14": {"token": "such"}, "15": {"token": "as"}, "16": {"token": "for"}, "17": {"token": "example"}, "18": {"token": "redesigning"}, "19": {"token": "the"}, "20": {"token": "framework"}, "21": {"token": "or"}, "22": {"token": "re-scaling"}, "23": {"token": "the"}, "24": {"token": "framework\u2019s"}, "25": {"token": "surroundings"}, "26": {"token": "."}},
+        "solution": [
+          [3, 6, "data"],
+          [8, 13, "backgroundclaim"],
+          [18, 20, "data"],
+          [22, 25, "data"]
+        ],
+        "difficulty": "difficult"
+      },
+      "9": {
+        "instructions": "<small style='padding:2px;'><i>Pop Quiz Instructions [Question 9]</i></small><br><h6>Please read the text given below. Then, identify all argument components and annotate them with the corresponding type (<span class='ownclaim' style='border-radius: .25rem;'>&nbspOwn Claim&nbsp</span>, <span class='backgroundclaim' style='border-radius: .25rem;'>&nbspBackground Claim&nbsp</span>, or <span class='data' style='border-radius: .25rem;'>&nbspData&nbsp</span>) – <b>zero</b>, <b>one</b>, or <b>more than one</b> argument components are possible.</h6>Keep in mind that: <ul style='margin-bottom:0px;'><li>An annotation can not be longer than one sentence!</li><li>Whenever you annotate a text span which ends with a punctuation (comma, period, semicolon, colon, etc.) do not include this symbol into your annotation.</li><li>Always try to annotate the minimal text span and omit conjunctions, such as ”because”, when they are not part of an argument but rather connecting multiple.</li><li>You should <strong>try to complete each questions with as few attempts as possible!</strong> Therefore, always think about possible solutions before you press the Check button.</li></ul>",
+        "text_to_annotate": {"0": {"token": "As"}, "1": {"token": "will"}, "2": {"token": "be"}, "3": {"token": "described"}, "4": {"token": "in"}, "5": {"token": "the"}, "6": {"token": "following"}, "7": {"token": "chapter"}, "8": {"token": ","}, "9": {"token": "our"}, "10": {"token": "BCB"}, "11": {"token": "runs"}, "12": {"token": "on"}, "13": {"token": "a"}, "14": {"token": "circular"}, "15": {"token": "arm"}, "16": {"token": "and"}, "17": {"token": "not"}, "18": {"token": "on"}, "19": {"token": "a"}, "20": {"token": "segment"}, "21": {"token": ","}, "22": {"token": "see"}, "23": {"token": "Figure"}, "24": {"token": "2"}, "25": {"token": "."}},
+        "solution": [
+          [6, 7, "data"],
+          [23, 24, "data"],
+          [9, 20, "ownclaim"]
+        ],
+        "difficulty": "difficult"
+      }
+    }
+  },
+  "filterStep2_argument_relation": {
+    "worker_IDs_who_passed": ["workerrelation1-passedfilter"],
+    "questions": {
+      "1": {
+        "instructions": "<small style='padding:2px;'><i>Pop Quiz Instructions [Question 1]</i></small><br><h6>Please read the text below. Then, look at the highlighted argument components, identify all relations of type <span class='supports' style='border-radius: .25rem;'>&nbspSupports&nbsp</span>, and annotate them.</h6>Keep in mind that: <ul style='margin-bottom:0px;'><li>For <span class='contradicts' style='border-radius: .25rem;'>&nbspContradicts&nbsp</span> and <span class='partsofsame' style='border-radius: .25rem;'>&nbspParts of Same&nbsp</span> relations the direction does <b>not</b> matter.</li><li>For <span class='supports' style='border-radius: .25rem;'>&nbspSupports&nbsp</span> relations the direction <b>does</b> matter.</li><li>You should <strong>try to complete each questions with as few attempts as possible!</strong> Therefore, always think about possible solutions before you press the Check button.</li></ul>",
+        "text_to_annotate": {"0": {"token": "As"}, "1": {"token": "found"}, "2": {"token": "by"}, "3": {"token": "["}, "4": {"token": "1"}, "5": {"token": "]"}, "6": {"token": ","}, "7": {"token": "less"}, "8": {"token": "and"}, "9": {"token": "less"}, "10": {"token": "researchers"}, "11": {"token": "publish"}, "12": {"token": "their"}, "13": {"token": "code"}, "14": {"token": "in"}, "15": {"token": "the"}, "16": {"token": "field"}, "17": {"token": "of"}, "18": {"token": "natural"}, "19": {"token": "language"}, "20": {"token": "processing"}, "21": {"token": "recently"}, "22": {"token": "."}},
+        "annotations": [
+          [4, 4, "data"],
+          [7, 21, "backgroundclaim"]
+        ],
+        "solution": {
+          "annotation_1": {
+            "start": 4,
+            "end": 4
+          },
+          "annotation_2": {
+            "start": 7,
+            "end": 21
+          },
+          "relation_type": "supports"
+        },
+        "difficulty": "easy"
+      },
+      "2": {
+        "instructions": "<small style='padding:2px;'><i>Pop Quiz Instructions [Question 2]</i></small><br><h6>Please read the text below. Then, look at the highlighted argument components, identify all relations of type <span class='contradicts' style='border-radius: .25rem;'>&nbspContradicts&nbsp</span>, and annotate them.</h6>Keep in mind that: <ul style='margin-bottom:0px;'><li>For <span class='contradicts' style='border-radius: .25rem;'>&nbspContradicts&nbsp</span> and <span class='partsofsame' style='border-radius: .25rem;'>&nbspParts of Same&nbsp</span> relations the direction does <b>not</b> matter.</li><li>For <span class='supports' style='border-radius: .25rem;'>&nbspSupports&nbsp</span> relations the direction <b>does</b> matter.</li><li>You should <strong>try to complete each questions with as few attempts as possible!</strong> Therefore, always think about possible solutions before you press the Check button.</li></ul>",
+        "text_to_annotate": {"0": {"token": "Several"}, "1": {"token": "researchers"}, "2": {"token": "have"}, "3": {"token": "found"}, "4": {"token": "that"}, "5": {"token": "the"}, "6": {"token": "quality"}, "7": {"token": "of"}, "8": {"token": "a"}, "9": {"token": "scientific"}, "10": {"token": "paper"}, "11": {"token": "depends"}, "12": {"token": "on"}, "13": {"token": "the"}, "14": {"token": "university"}, "15": {"token": "the"}, "16": {"token": "authors"}, "17": {"token": "are"}, "18": {"token": "associated"}, "19": {"token": "with"}, "20": {"token": "."}, "21": {"token": "However"}, "22": {"token": ","}, "23": {"token": "our"}, "24": {"token": "findings"}, "25": {"token": "show"}, "26": {"token": "that"}, "27": {"token": "the"}, "28": {"token": "quality"}, "29": {"token": "of"}, "30": {"token": "a"}, "31": {"token": "paper"}, "32": {"token": "mainly"}, "33": {"token": "depends"}, "34": {"token": "on"}, "35": {"token": "the"}, "36": {"token": "journal"}, "37": {"token": "which"}, "38": {"token": "published"}, "39": {"token": "it"}, "40": {"token": "."}},
+        "annotations": [
+          [5, 19, "backgroundclaim"],
+          [27, 39, "ownclaim"]
+        ],
+        "solution": {
+          "annotation_1": {
+            "start": 5,
+            "end": 19
+          },
+          "annotation_2": {
+            "start": 27,
+            "end": 39
+          },
+          "relation_type": "contradicts"
+        },
+        "difficulty": "easy"
+      },
+      "3": {
+        "instructions": "<small style='padding:2px;'><i>Pop Quiz Instructions [Question 3]</i></small><br><h6>Please read the text below. Then, look at the highlighted argument components, identify all relations of type <span class='partsofsame' style='border-radius: .25rem;'>&nbspParts of Same&nbsp</span>, and annotate them.</h6>Keep in mind that: <ul style='margin-bottom:0px;'><li>For <span class='contradicts' style='border-radius: .25rem;'>&nbspContradicts&nbsp</span> and <span class='partsofsame' style='border-radius: .25rem;'>&nbspParts of Same&nbsp</span> relations the direction does <b>not</b> matter.</li><li>For <span class='supports' style='border-radius: .25rem;'>&nbspSupports&nbsp</span> relations the direction <b>does</b> matter.</li><li>You should <strong>try to complete each questions with as few attempts as possible!</strong> Therefore, always think about possible solutions before you press the Check button.</li></ul>",
+        "text_to_annotate": {"0": {"token": "In"}, "1": {"token": "this"}, "2": {"token": "paper"}, "3": {"token": ","}, "4": {"token": "we"}, "5": {"token": "show"}, "6": {"token": "that"}, "7": {"token": "the"}, "8": {"token": "accuracy"}, "9": {"token": "of"}, "10": {"token": "results"}, "11": {"token": "correlates"}, "12": {"token": "with"}, "13": {"token": "the"}, "14": {"token": "number"}, "15": {"token": "of"}, "16": {"token": "possible"}, "17": {"token": "answers"}, "18": {"token": "("}, "19": {"token": "see"}, "20": {"token": "figure"}, "21": {"token": "3"}, "22": {"token": ")"}, "23": {"token": "as"}, "24": {"token": "well"}, "25": {"token": "as"}, "26": {"token": "with"}, "27": {"token": "the"}, "28": {"token": "clarity"}, "29": {"token": "of"}, "30": {"token": "the"}, "31": {"token": "posted"}, "32": {"token": "question"}, "33": {"token": "."}},
+        "annotations": [
+          [7, 17, "ownclaim"],
+          [20, 21, "data"],
+          [26, 32, "ownclaim"]
+        ],
+        "solution": {
+          "annotation_1": {
+            "start": 7,
+            "end": 17
+          },
+          "annotation_2": {
+            "start": 26,
+            "end": 32
+          },
+          "relation_type": "partsofsame"
+        },
+        "difficulty": "easy"
+      },
+      "4": {
+        "instructions": "<small style='padding:2px;'><i>Pop Quiz Instructions [Question 4]</i></small><br><h6>Please read the text below. Then, look at the highlighted argument components, identify all relations of type <span class='supports' style='border-radius: .25rem;'>&nbspSupports&nbsp</span>, and annotate them.</h6>Keep in mind that: <ul style='margin-bottom:0px;'><li>For <span class='contradicts' style='border-radius: .25rem;'>&nbspContradicts&nbsp</span> and <span class='partsofsame' style='border-radius: .25rem;'>&nbspParts of Same&nbsp</span> relations the direction does <b>not</b> matter.</li><li>For <span class='supports' style='border-radius: .25rem;'>&nbspSupports&nbsp</span> relations the direction <b>does</b> matter.</li><li>You should <strong>try to complete each questions with as few attempts as possible!</strong> Therefore, always think about possible solutions before you press the Check button.</li></ul>",
+        "text_to_annotate": {"0": {"token": "As"}, "1": {"token": "can"}, "2": {"token": "be"}, "3": {"token": "seen"}, "4": {"token": "in"}, "5": {"token": "Fig"}, "6": {"token": "."}, "7": {"token": "6"}, "8": {"token": ","}, "9": {"token": "our"}, "10": {"token": "implementation"}, "11": {"token": "of"}, "12": {"token": "the"}, "13": {"token": "fall"}, "14": {"token": "controller"}, "15": {"token": "can"}, "16": {"token": "handle"}, "17": {"token": "falls"}, "18": {"token": "in"}, "19": {"token": "any"}, "20": {"token": "direction"}, "21": {"token": ","}, "22": {"token": "responding"}, "23": {"token": "in"}, "24": {"token": "different"}, "25": {"token": "ways"}, "26": {"token": "to"}, "27": {"token": "falls"}, "28": {"token": "in"}, "29": {"token": "different"}, "30": {"token": "directions"}, "31": {"token": "."}, "32": {"token": "For"}, "33": {"token": "efficiency"}, "34": {"token": ","}, "35": {"token": "the"}, "36": {"token": "supervisor"}, "37": {"token": "controller"}, "38": {"token": "calculates"}, "39": {"token": "a"}, "40": {"token": "number"}, "41": {"token": "of"}, "42": {"token": "common"}, "43": {"token": "sensor"}, "44": {"token": "values"}, "45": {"token": "that"}, "46": {"token": "are"}, "47": {"token": "available"}, "48": {"token": "to"}, "49": {"token": "all"}, "50": {"token": "the"}, "51": {"token": "controllers"}, "52": {"token": "."}},
+        "annotations": [
+          [5, 7, "data"],
+          [9, 30, "ownclaim"],
+          [32, 51, "ownclaim"]
+        ],
+        "solution": {
+          "annotation_1": {
+            "start": 5,
+            "end": 7
+          },
+          "annotation_2": {
+            "start": 9,
+            "end": 30
+          },
+          "relation_type": "supports"
+        },
+        "difficulty": "medium"
+      },
+      "5": {
+        "instructions": "<small style='padding:2px;'><i>Pop Quiz Instructions [Question 5]</i></small><br><h6>Please read the text below. Then, look at the highlighted argument components, identify all relations of type <span class='contradicts' style='border-radius: .25rem;'>&nbspContradicts&nbsp</span>, and annotate them.</h6>Keep in mind that: <ul style='margin-bottom:0px;'><li>For <span class='contradicts' style='border-radius: .25rem;'>&nbspContradicts&nbsp</span> and <span class='partsofsame' style='border-radius: .25rem;'>&nbspParts of Same&nbsp</span> relations the direction does <b>not</b> matter.</li><li>For <span class='supports' style='border-radius: .25rem;'>&nbspSupports&nbsp</span> relations the direction <b>does</b> matter.</li><li>You should <strong>try to complete each questions with as few attempts as possible!</strong> Therefore, always think about possible solutions before you press the Check button.</li></ul>",
+        "text_to_annotate": {"0": {"token": "Given"}, "1": {"token": "standard"}, "2": {"token": "principles"}, "3": {"token": "of"}, "4": {"token": "computer"}, "5": {"token": "graphics"}, "6": {"token": ","}, "7": {"token": "this"}, "8": {"token": "approach"}, "9": {"token": "results"}, "10": {"token": "in"}, "11": {"token": "more"}, "12": {"token": "accurately"}, "13": {"token": "animated"}, "14": {"token": "effects"}, "15": {"token": "in"}, "16": {"token": "comparison"}, "17": {"token": "to"}, "18": {"token": "its"}, "19": {"token": "geometric"}, "20": {"token": "counterpart"}, "21": {"token": "."}, "22": {"token": "But"}, "23": {"token": "still"}, "24": {"token": ","}, "25": {"token": "it"}, "26": {"token": "is"}, "27": {"token": "actually"}, "28": {"token": "never"}, "29": {"token": "used"}, "30": {"token": "nowadays"}, "31": {"token": "since"}, "32": {"token": "the"}, "33": {"token": "results"}, "34": {"token": "are"}, "35": {"token": "not"}, "36": {"token": "easily"}, "37": {"token": "interpretable"}, "38": {"token": "and"}, "39": {"token": "therefore"}, "40": {"token": "can"}, "41": {"token": "not"}, "42": {"token": "be"}, "43": {"token": "used"}, "44": {"token": "for"}, "45": {"token": "applications"}, "46": {"token": "in"}, "47": {"token": "a"}, "48": {"token": "real"}, "49": {"token": "environment"}, "50": {"token": "."}, "51": {"token": "For"}, "52": {"token": "machine"}, "53": {"token": "learning"}, "54": {"token": "algorithms"}, "55": {"token": ","}, "56": {"token": "completely"}, "57": {"token": "different"}, "58": {"token": "approaches"}, "59": {"token": "are"}, "60": {"token": "being"}, "61": {"token": "used"}, "62": {"token": "nowadays"}, "63": {"token": "."}},
+        "annotations": [
+          [7, 20, "backgroundclaim"],
+          [25, 49, "backgroundclaim"],
+          [51, 62, "backgroundclaim"]
+        ],
+        "solution": {
+          "annotation_1": {
+            "start": 7,
+            "end": 20
+          },
+          "annotation_2": {
+            "start": 25,
+            "end": 49
+          },
+          "relation_type": "contradicts"
+        },
+        "difficulty": "medium"
+      },
+      "6": {
+        "instructions": "<small style='padding:2px;'><i>Pop Quiz Instructions [Question 6]</i></small><br><h6>Please read the text below. Then, look at the highlighted argument components, identify all relations of type <span class='partsofsame' style='border-radius: .25rem;'>&nbspParts of Same&nbsp</span>, and annotate them.</h6>Keep in mind that: <ul style='margin-bottom:0px;'><li>For <span class='contradicts' style='border-radius: .25rem;'>&nbspContradicts&nbsp</span> and <span class='partsofsame' style='border-radius: .25rem;'>&nbspParts of Same&nbsp</span> relations the direction does <b>not</b> matter.</li><li>For <span class='supports' style='border-radius: .25rem;'>&nbspSupports&nbsp</span> relations the direction <b>does</b> matter.</li><li>You should <strong>try to complete each questions with as few attempts as possible!</strong> Therefore, always think about possible solutions before you press the Check button.</li></ul>",
+        "text_to_annotate": {"0": {"token": "The"}, "1": {"token": "dynamic"}, "2": {"token": "properties"}, "3": {"token": "of"}, "4": {"token": "both"}, "5": {"token": "models"}, "6": {"token": ","}, "7": {"token": "such"}, "8": {"token": "as"}, "9": {"token": "mass"}, "10": {"token": "data1"}, "11": {"token": "and"}, "12": {"token": "moments"}, "13": {"token": "of"}, "14": {"token": "inertia"}, "15": {"token": ","}, "16": {"token": "are"}, "17": {"token": "taken"}, "18": {"token": "from"}, "19": {"token": "the"}, "20": {"token": "biomechanics"}, "21": {"token": "literature"}, "22": {"token": "and"}, "23": {"token": "correspond"}, "24": {"token": "to"}, "25": {"token": "a"}, "26": {"token": "fullyfleshed"}, "27": {"token": "adult"}, "28": {"token": "male"}, "29": {"token": "."}},
+        "annotations": [
+          [0, 5, "ownclaim"],
+          [9, 9, "data"],
+          [12, 14, "data"],
+          [16, 28, "ownclaim"]
+        ],
+        "solution": {
+          "annotation_1": {
+            "start": 0,
+            "end": 5
+          },
+          "annotation_2": {
+            "start": 16,
+            "end": 28
+          },
+          "relation_type": "partsofsame"
+        },
+        "difficulty": "medium"
+      },
+      "7": {
+        "instructions": "<small style='padding:2px;'><i>Pop Quiz Instructions [Question 7]</i></small><br><h6>Please read the text below. Then, look at the highlighted argument components, identify the relations between them, and annotate them with the corresponding type (<span class='supports' style='border-radius: .25rem;'>&nbspSupports&nbsp</span>, <span class='contradicts' style='border-radius: .25rem;'>&nbspContradicts&nbsp</span>, or <span class='partsofsame' style='border-radius: .25rem;'>&nbspParts of Same&nbsp</span>).</h6>Keep in mind that: <ul style='margin-bottom:0px;'><li>For <span class='contradicts' style='border-radius: .25rem;'>&nbspContradicts&nbsp</span> and <span class='partsofsame' style='border-radius: .25rem;'>&nbspParts of Same&nbsp</span> relations the direction does <b>not</b> matter.</li><li>For <span class='supports' style='border-radius: .25rem;'>&nbspSupports&nbsp</span> relations the direction <b>does</b> matter.</li><li>You should <strong>try to complete each questions with as few attempts as possible!</strong> Therefore, always think about possible solutions before you press the Check button.</li></ul>",
+        "text_to_annotate": {"0": {"token": "A"}, "1": {"token": "3"}, "2": {"token": "DOF"}, "3": {"token": "ball-juggling"}, "4": {"token": "robot"}, "5": {"token": "is"}, "6": {"token": "described"}, "7": {"token": "in"}, "8": {"token": "["}, "9": {"token": "6"}, "10": {"token": "]"}, "11": {"token": "which"}, "12": {"token": "uses"}, "13": {"token": "a"}, "14": {"token": "theory"}, "15": {"token": "of"}, "16": {"token": "behavior"}, "17": {"token": "composition"}, "18": {"token": ","}, "19": {"token": "although"}, "20": {"token": "the"}, "21": {"token": "practicality"}, "22": {"token": "of"}, "23": {"token": "extending"}, "24": {"token": "the"}, "25": {"token": "method"}, "26": {"token": "to"}, "27": {"token": "high-DOF"}, "28": {"token": "dynamic"}, "29": {"token": "models"}, "30": {"token": "of"}, "31": {"token": "human"}, "32": {"token": "motions"}, "33": {"token": "is"}, "34": {"token": "unclear"}, "35": {"token": "."}},
+        "annotations": [
+          [0, 6, "backgroundclaim"],
+          [9, 9, "data"],
+          [11, 17, "backgroundclaim"],
+          [20, 34, "backgroundclaim"]
+        ],
+        "solution": [
+          [{
+            "annotation_1": {
+              "start": 0,
+              "end": 6
+            },
+            "annotation_2": {
+              "start": 11,
+              "end": 17
+            },
+            "relation_type": "partsofsame"
+          },
+          {
+            "annotation_1": {
+              "start": 9,
+              "end": 9
+            },
+            "annotation_2": {
+              "start": 0,
+              "end": 6
+            },
+            "relation_type": "supports"
+          },
+          {
+            "annotation_1": {
+              "start": 20,
+              "end": 34
+            },
+            "annotation_2": {
+              "start": 0,
+              "end": 6
+            },
+            "relation_type": "contradicts"
+          }],
+          [{
+            "annotation_1": {
+              "start": 0,
+              "end": 6
+            },
+            "annotation_2": {
+              "start": 11,
+              "end": 17
+            },
+            "relation_type": "partsofsame"
+          },
+          {
+            "annotation_1": {
+              "start": 9,
+              "end": 9
+            },
+            "annotation_2": {
+              "start": 11,
+              "end": 17
+            },
+            "relation_type": "supports"
+          },
+          {
+            "annotation_1": {
+              "start": 20,
+              "end": 34
+            },
+            "annotation_2": {
+              "start": 0,
+              "end": 6
+            },
+            "relation_type": "contradicts"
+          }],
+          [{
+            "annotation_1": {
+              "start": 0,
+              "end": 6
+            },
+            "annotation_2": {
+              "start": 11,
+              "end": 17
+            },
+            "relation_type": "partsofsame"
+          },
+          {
+            "annotation_1": {
+              "start": 9,
+              "end": 9
+            },
+            "annotation_2": {
+              "start": 0,
+              "end": 6
+            },
+            "relation_type": "supports"
+          },
+          {
+            "annotation_1": {
+              "start": 20,
+              "end": 34
+            },
+            "annotation_2": {
+              "start": 11,
+              "end": 17
+            },
+            "relation_type": "contradicts"
+          }],
+          [{
+            "annotation_1": {
+              "start": 0,
+              "end": 6
+            },
+            "annotation_2": {
+              "start": 11,
+              "end": 17
+            },
+            "relation_type": "partsofsame"
+          },
+          {
+            "annotation_1": {
+              "start": 9,
+              "end": 9
+            },
+            "annotation_2": {
+              "start": 11,
+              "end": 17
+            },
+            "relation_type": "supports"
+          },
+          {
+            "annotation_1": {
+              "start": 20,
+              "end": 34
+            },
+            "annotation_2": {
+              "start": 11,
+              "end": 17
+            },
+            "relation_type": "contradicts"
+          }]
+        ],
+        "difficulty": "difficult"
+      },
+      "8": {
+        "instructions": "<small style='padding:2px;'><i>Pop Quiz Instructions [Question 8]</i></small><br><h6>Please read the text below. Then, look at the highlighted argument components, identify the relations between them, and annotate them with the corresponding type (<span class='supports' style='border-radius: .25rem;'>&nbspSupports&nbsp</span>, <span class='contradicts' style='border-radius: .25rem;'>&nbspContradicts&nbsp</span>, or <span class='partsofsame' style='border-radius: .25rem;'>&nbspParts of Same&nbsp</span>).</h6>Keep in mind that: <ul style='margin-bottom:0px;'><li>For <span class='contradicts' style='border-radius: .25rem;'>&nbspContradicts&nbsp</span> and <span class='partsofsame' style='border-radius: .25rem;'>&nbspParts of Same&nbsp</span> relations the direction does <b>not</b> matter.</li><li>For <span class='supports' style='border-radius: .25rem;'>&nbspSupports&nbsp</span> relations the direction <b>does</b> matter.</li><li>You should <strong>try to complete each questions with as few attempts as possible!</strong> Therefore, always think about possible solutions before you press the Check button.</li></ul>",
+        "text_to_annotate": {"0": {"token": "The"}, "1": {"token": "controllers"}, "2": {"token": "we"}, "3": {"token": "used"}, "4": {"token": "may"}, "5": {"token": "not"}, "6": {"token": "completely"}, "7": {"token": "specify"}, "8": {"token": "the"}, "9": {"token": "temporal"}, "10": {"token": "relations"}, "11": {"token": "between"}, "12": {"token": "the"}, "13": {"token": "events"}, "14": {"token": "."}, "15": {"token": "We"}, "16": {"token": "claim"}, "17": {"token": "that"}, "18": {"token": "these"}, "19": {"token": "relations"}, "20": {"token": "could"}, "21": {"token": "further"}, "22": {"token": "be"}, "23": {"token": "constrained"}, "24": {"token": "by"}, "25": {"token": "other"}, "26": {"token": "clauses"}, "27": {"token": "."}, "28": {"token": "We"}, "29": {"token": "present"}, "30": {"token": "four"}, "31": {"token": "relevant"}, "32": {"token": "relations"}, "33": {"token": ","}, "34": {"token": "including"}, "35": {"token": "the"}, "36": {"token": "constraints"}, "37": {"token": ","}, "38": {"token": "in"}, "39": {"token": "the"}, "40": {"token": "next"}, "41": {"token": "chapter"}, "42": {"token": "."}},
+        "annotations": [
+          [0, 13, "ownclaim"],
+          [18, 26, "ownclaim"]
+        ],
+        "solution": {
+          "annotation_1": {
+            "start": 0,
+            "end": 13
+          },
+          "annotation_2": {
+            "start": 18,
+            "end": 26
+          },
+          "relation_type": "supports"
+        },
+        "difficulty": "difficult"
+      },
+      "9": {
+        "instructions": "<small style='padding:2px;'><i>Pop Quiz Instructions [Question 9]</i></small><br><h6>Please read the text below. Then, look at the highlighted argument components, identify all relations of type <span class='partsofsame' style='border-radius: .25rem;'>&nbspParts of Same&nbsp</span> and annotate them.</h6>Keep in mind that: <ul style='margin-bottom:0px;'><li>For <span class='contradicts' style='border-radius: .25rem;'>&nbspContradicts&nbsp</span> and <span class='partsofsame' style='border-radius: .25rem;'>&nbspParts of Same&nbsp</span> relations the direction does <b>not</b> matter.</li><li>For <span class='supports' style='border-radius: .25rem;'>&nbspSupports&nbsp</span> relations the direction <b>does</b> matter.</li><li>You should <strong>try to complete each questions with as few attempts as possible!</strong> Therefore, always think about possible solutions before you press the Check button.</li></ul>",
+        "text_to_annotate": {"0": {"token": "Deriving"}, "1": {"token": "controllers"}, "2": {"token": "from"}, "3": {"token": "motion-capture"}, "4": {"token": "data"}, "5": {"token": "is"}, "6": {"token": "an"}, "7": {"token": "exciting"}, "8": {"token": "but"}, "9": {"token": "difficult"}, "10": {"token": "prospect"}, "11": {"token": ","}, "12": {"token": "although"}, "13": {"token": "some"}, "14": {"token": "progress"}, "15": {"token": "is"}, "16": {"token": "already"}, "17": {"token": "being"}, "18": {"token": "made"}, "19": {"token": "in"}, "20": {"token": "this"}, "21": {"token": "area"}, "22": {"token": "."}},
+        "annotations": [
+          [0, 10, "ownclaim"],
+          [13, 21, "backgroundclaim"]
+        ],
+        "solution": {
+          "annotation_1": {
+            "start": 0,
+            "end": 10
+          },
+          "annotation_2": {
+            "start": 13,
+            "end": 21
+          },
+          "relation_type": "contradicts"
+        },
+        "difficulty": "difficult"
+      }
+    }
+
+  }
+}
