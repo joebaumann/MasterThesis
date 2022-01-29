@@ -5,10 +5,10 @@ If any questions arise, feel free to write me an email at <joachim.baumann@uzh.c
 ## Running Flask App Locally
 
 ```
-$ git clone https://gitlab.ifi.uzh.ch/ddis/Students/Theses/2020-joachim-baumann.git
-$ cd 2020-joachim-baumann
-python3 -m venv venv
-source venv/bin/activate
+git clone https://github.com/joebaumann/MasterThesis.git
+cd MasterThesis
+conda create -n env-masterthesis-joebaumann python=3.8.2
+conda activate env-masterthesis-joebaumann
 pip install -r requirements.txt
 FLASK_APP=app FLASK_ENV=development
 flask run
@@ -37,7 +37,7 @@ Now that the Flask app is running locally,
     - Version used for experiment pilot 2 (paragraphs 2-4): http://localhost:5000/textannotation/relations/batch1_argumentRelations/paragraph_2;paragraph_3;paragraph_4?assignmentId=RelationsPilot2P24
 
 
-All HIT templates outlined above can also be accessed online by replacing \newline \verb|http://localhost:5000| with \verb|https://masterthesisjb.herokuapp.com| or with the URL to your own Heroku app once the deployment, which is described next, is complete.
+All HIT templates outlined above can also be accessed online by replacing `http://localhost:5000` with `https://masterthesisjb.herokuapp.com` or with the URL to your own Heroku app once the deployment, which is described next, is complete.
 
 
 ## Deployment to Heroku
@@ -49,19 +49,19 @@ Otherwise, install it following the instructions at: https://devcenter.heroku.co
 Then, run the following commands to deploy the Flask app to Heroku:
 
 ```
-    $ git clone https://gitlab.ifi.uzh.ch/ddis/Students/Theses/2020-joachim-baumann.git
-    $ cd 2020-joachim-baumann
+    $ git clone https://github.com/joebaumann/MasterThesis.git
+    $ cd MasterThesis
     $ heroku create
     $ git push heroku master
 ```
 
-After the deployment is complete you can open the flask app using the \verb|heroku open| command. This brings you to the welcome page. With the URLs outlined above, you can then access either the admin area or one of the various HIT templates.
+After the deployment is complete you can open the flask app using the `heroku open` command. This brings you to the welcome page. With the URLs outlined above, you can then access either the admin area or one of the various HIT templates.
 Further, you can see your newly created Heroku app in the Heroku dashboard\footnote{https://dashboard.heroku.com/apps}} from where you can manage the app (for example change the app name).
 
 
 Important additional information:
-- Make sure that the name of the Heroku app corresponds with the \verb|APP_NAME| variable in the config file\footnote{https://gitlab.ifi.uzh.ch/ddis/Students/Theses/2020-joachim-baumann/-/blob/master/config.py}}.
-- Make sure to always push the repository to Heroku (using \verb|git push heroku master|) after a new batch configuration has been added to the config file).
-- Ass the aggregation of worker answers is done with Multi-Annotator Competence Estimation (MACE)\footnote{MACE is a Java-based implementation which is available for download at:~https://www.isi.edu/publications/licensed-sw/mace}.}, make sure to download it and place in the root of the repository.
+- Make sure that the name of the Heroku app corresponds with the `APP_NAME` variable in the config file\footnote{https://github.com/joebaumann/MasterThesis/blob/master/config.py}}.
+- Make sure to always push the repository to Heroku (using `git push heroku master`) after a new batch configuration has been added to the config file).
+- As the aggregation of worker answers is done with Multi-Annotator Competence Estimation (MACE)\footnote{MACE is a Java-based implementation which is available for download at:~https://www.isi.edu/publications/licensed-sw/mace}.}, make sure to download it and place in the root of the repository.
 - Used Python version: 3.8.2
 
