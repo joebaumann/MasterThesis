@@ -1,8 +1,3 @@
-"""
-This file is just for testing purposes and can be deleted at any time...
-"""
-
-
 import glob
 import json
 import os
